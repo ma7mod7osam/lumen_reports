@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "creation": "2026-07-23 12:30:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "gemini_api_key",
+  "model"
+ ],
+ "fields": [
+  {
+   "description": "Shared fallback key for all users who haven't added a personal key. Stored encrypted.",
+   "fieldname": "gemini_api_key",
+   "fieldtype": "Password",
+   "label": "Site Gemini API Key"
+  },
+  {
+   "default": "gemini-flash-latest",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "label": "Model"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-07-23 12:30:00.000000",
+ "modified_by": "Administrator",
+ "module": "Lumen Reports",
+ "name": "Lumen AI Site Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

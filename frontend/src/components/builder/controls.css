@@ -1,0 +1,85 @@
+/* form controls for the builder, in the Lumen kit language */
+.lfield {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lfield > label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 600;
+}
+.lfield input[type='text'],
+.lfield input[type='number'],
+.lfield select,
+.lfield textarea {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13.5px;
+  font-weight: 500;
+  outline: none;
+  width: 100%;
+}
+.lfield textarea {
+  height: auto;
+  padding: 10px 12px;
+  resize: vertical;
+}
+.lfield input:focus,
+.lfield select:focus,
+.lfield textarea:focus {
+  border-color: var(--blue-300);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 14%, transparent);
+}
+.lbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-2);
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.lbtn:hover {
+  border-color: var(--blue-300);
+}
+.lbtn.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.lbtn.primary:hover {
+  background: var(--blue-600);
+}
+.lbtn.danger {
+  color: var(--danger);
+}
+.lbtn.danger:hover {
+  border-color: var(--danger);
+}
+.lbtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lbtn.sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}

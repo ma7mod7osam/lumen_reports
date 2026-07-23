@@ -1,0 +1,68 @@
+{
+ "actions": [],
+ "creation": "2026-07-21 12:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "widget_id",
+  "title",
+  "widget_type",
+  "query_json",
+  "style_json",
+  "linked_filters"
+ ],
+ "fields": [
+  {
+   "fieldname": "widget_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Widget ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title"
+  },
+  {
+   "fieldname": "widget_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Widget Type",
+   "options": "Number Card\nBar Chart\nLine Chart\nArea Chart\nPie Chart\nDonut Chart\nTable",
+   "reqd": 1
+  },
+  {
+   "description": "Query definition: {doctype, metric, aggregate_function, aggregate_field, group_by, time_grain, filters, sort, limit}",
+   "fieldname": "query_json",
+   "fieldtype": "JSON",
+   "label": "Query"
+  },
+  {
+   "description": "Visual style options: {color, palette, show_legend, number_format, ...}",
+   "fieldname": "style_json",
+   "fieldtype": "JSON",
+   "label": "Style"
+  },
+  {
+   "description": "Maps dashboard filter names to this widget's fieldnames: {filter_name: fieldname}",
+   "fieldname": "linked_filters",
+   "fieldtype": "JSON",
+   "label": "Linked Filters"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-21 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Lumen Reports",
+ "name": "Lumen Widget",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

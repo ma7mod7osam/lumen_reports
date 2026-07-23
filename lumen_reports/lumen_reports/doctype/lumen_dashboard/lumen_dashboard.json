@@ -1,0 +1,119 @@
+{
+ "actions": [],
+ "autoname": "field:route_slug",
+ "creation": "2026-07-21 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "dashboard_title",
+  "route_slug",
+  "description",
+  "column_break_1",
+  "auto_refresh",
+  "is_published",
+  "section_widgets",
+  "widgets",
+  "section_config",
+  "layout_json",
+  "filters_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "dashboard_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "description": "Used in the dashboard URL: /lumen/dashboard/<slug>",
+   "fieldname": "route_slug",
+   "fieldtype": "Data",
+   "label": "Slug",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "description": "Refresh widgets in realtime when underlying documents change",
+   "fieldname": "auto_refresh",
+   "fieldtype": "Check",
+   "label": "Live Updates"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_published",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Published"
+  },
+  {
+   "fieldname": "section_widgets",
+   "fieldtype": "Section Break",
+   "label": "Widgets"
+  },
+  {
+   "fieldname": "widgets",
+   "fieldtype": "Table",
+   "label": "Widgets",
+   "options": "Lumen Widget"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_config",
+   "fieldtype": "Section Break",
+   "label": "Configuration"
+  },
+  {
+   "description": "Grid layout: [{widget_id, x, y, w, h}]",
+   "fieldname": "layout_json",
+   "fieldtype": "JSON",
+   "label": "Layout"
+  },
+  {
+   "description": "Dashboard-level filters: [{name, label, fieldtype, options, default}]",
+   "fieldname": "filters_json",
+   "fieldtype": "JSON",
+   "label": "Dashboard Filters"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-07-21 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Lumen Reports",
+ "name": "Lumen Dashboard",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Desk User"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

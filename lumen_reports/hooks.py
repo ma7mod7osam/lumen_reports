@@ -145,6 +145,25 @@ app_license = "mit"
 # 	}
 # }
 
+doc_events = {
+	"*": {
+		"on_change": "lumen_reports.realtime.notify_doc_change",
+		"after_delete": "lumen_reports.realtime.notify_doc_change",
+	}
+}
+
+permission_query_conditions = {
+	"Lumen Dashboard": "lumen_reports.permissions.get_permission_query_conditions",
+}
+
+has_permission = {
+	"Lumen Dashboard": "lumen_reports.permissions.has_permission",
+}
+
+website_route_rules = [
+	{"from_route": "/lumen/<path:app_path>", "to_route": "lumen"},
+]
+
 # Scheduled Tasks
 # ---------------
 
