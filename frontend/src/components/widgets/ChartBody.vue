@@ -14,6 +14,8 @@ const props = defineProps({
   selectable: { type: Boolean, default: false },
   // the widget's query — used to detect time series (never folded)
   query: { type: Object, default: null },
+  // palette slot for single-series charts (user-chosen accent color)
+  accent: { type: Number, default: 0 },
 })
 const emit = defineEmits(['select'])
 
@@ -82,7 +84,7 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => [props.result, props.widgetType],
+  () => [props.result, props.widgetType, props.accent],
   () => props.result && render()
 )
 watch(themeVersion, () => props.result && chart && render())
@@ -148,7 +150,8 @@ function baseCartesian(labels) {
 function buildOption() {
   const type = props.widgetType
   const palette = chartPalette()
-  const c1 = palette[0]
+  // single-series charts wear the user-chosen accent (palette slot)
+  const c1 = palette[(props.accent || 0) % palette.length]
 
   // fold long categorical tails into "Other"; never fold a time axis
   let { labels = [], values = [] } = props.result || {}

@@ -28,6 +28,7 @@
       :widget-type="widget.widget_type"
       :result="data"
       :query="widget.query"
+      :accent="widget.style?.accent || 0"
       :selectable="selectable"
       @select="onSelect"
     />

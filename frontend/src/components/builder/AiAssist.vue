@@ -70,9 +70,10 @@
                 </div>
                 <div class="min-h-0 flex-1" style="padding: 12px 15px 14px">
                   <TableBody v-if="entry.widget.widget_type === 'Table'" :result="entry.result" />
-                  <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" />
+                  <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" :accent="entry.widget.style?.accent || 0" />
                 </div>
               </div>
+              <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" default-tint="blue" />
             </div>
           </div>
         </template>
@@ -100,6 +101,7 @@ import { computed, onMounted, ref } from 'vue'
 import { call } from 'frappe-ui'
 import Modal from '@/components/builder/Modal.vue'
 import ChartBody from '@/components/widgets/ChartBody.vue'
+import ChartVariants from '@/components/widgets/ChartVariants.vue'
 import TableBody from '@/components/widgets/TableBody.vue'
 import NumberBody from '@/components/widgets/NumberBody.vue'
 
@@ -193,7 +195,7 @@ function confirm() {
 }
 .pv-chart {
   grid-column: span 6;
-  height: 250px;
+  height: 286px;
 }
 .pv-table {
   grid-column: span 12;
@@ -202,6 +204,12 @@ function confirm() {
 }
 .pv-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.pv-card > .panel {
+  flex: 1;
+  min-height: 0;
 }
 .pv-card.pv-off > .panel {
   opacity: 0.45;

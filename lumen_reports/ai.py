@@ -768,8 +768,10 @@ def save_ai_result(widgets, title: str | None = None, slug: str | None = None):
 				"style": w.get("style") or {},
 			}
 		)
-	# tint KPI cards in rotation so a KPI row doesn't come out all-blue
-	for i, w in enumerate([p for p in prepared if p["widget_type"] == "Number Card"]):
+	# tint KPI cards in rotation so a KPI row doesn't come out all-blue —
+	# but never override a tint the user picked in the preview
+	untinted = [p for p in prepared if p["widget_type"] == "Number Card" and not p["style"].get("tint")]
+	for i, w in enumerate(untinted):
 		w["style"] = {**w["style"], "tint": KPI_TINTS[i % len(KPI_TINTS)]}
 
 	if slug:

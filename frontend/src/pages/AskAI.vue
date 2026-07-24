@@ -215,7 +215,7 @@
           </button>
           <span v-if="entry.empty" class="badge b-amber ai-empty"><span class="dot"></span>No data yet</span>
           <div v-if="entry.widget.widget_type === 'Number Card'" class="panel kpi" style="height: 100%">
-            <NumberBody :result="entry.result" :label="entry.widget.title" :tint="KPI_TINTS[kpiIndex(i) % 4]" />
+            <NumberBody :result="entry.result" :label="entry.widget.title" :tint="entry.widget.style?.tint || KPI_TINTS[kpiIndex(i) % 4]" />
           </div>
           <div v-else class="panel flex h-full flex-col">
             <div class="panel-h" style="padding: 13px 18px">
@@ -223,9 +223,10 @@
             </div>
             <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
               <TableBody v-if="entry.widget.widget_type === 'Table'" :result="entry.result" />
-              <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" />
+              <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" :accent="entry.widget.style?.accent || 0" />
             </div>
           </div>
+          <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" :default-tint="KPI_TINTS[kpiIndex(i) % 4]" />
         </div>
       </div>
 
@@ -315,6 +316,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { call } from 'frappe-ui'
 import ChartBody from '@/components/widgets/ChartBody.vue'
+import ChartVariants from '@/components/widgets/ChartVariants.vue'
 import TableBody from '@/components/widgets/TableBody.vue'
 import NumberBody from '@/components/widgets/NumberBody.vue'
 
@@ -574,7 +576,7 @@ function reset() {
 }
 .ai-chart {
   grid-column: span 6;
-  height: 330px;
+  height: 366px;
 }
 .ai-table {
   grid-column: span 12;
@@ -583,6 +585,12 @@ function reset() {
 }
 .ai-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.ai-card > .panel {
+  flex: 1;
+  min-height: 0;
 }
 .ai-card.ai-off > .panel {
   opacity: 0.45;

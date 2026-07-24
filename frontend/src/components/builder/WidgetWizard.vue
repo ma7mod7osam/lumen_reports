@@ -116,6 +116,21 @@
               </button>
             </div>
           </div>
+
+          <div v-if="['Bar Chart', 'Line Chart', 'Area Chart'].includes(form.widget_type)" class="lfield">
+            <label>Color</label>
+            <div class="flex items-center gap-2">
+              <button
+                v-for="(c, i) in paletteColors"
+                :key="i"
+                class="wiz-dot"
+                :class="{ on: form.accent === i }"
+                :style="{ background: c }"
+                :title="'Color ' + (i + 1)"
+                @click="form.accent = i"
+              ></button>
+            </div>
+          </div>
         </template>
 
         <template v-else>
@@ -210,7 +225,7 @@
               </div>
               <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
                 <TableBody v-if="form.widget_type === 'Table'" :result="preview" />
-                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" />
+                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" :accent="form.accent" />
               </div>
             </div>
           </div>
@@ -238,6 +253,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { call, createResource } from 'frappe-ui'
+import { chartPalette, themeVersion } from '@/lib/theme'
 import Modal from '@/components/builder/Modal.vue'
 import ChartBody from '@/components/widgets/ChartBody.vue'
 import TableBody from '@/components/widgets/TableBody.vue'
@@ -288,6 +304,7 @@ const form = reactive({
   group_key: groupKeyFromQuery(q),
   time_grain: q.group_by?.time_grain || 'month',
   tint: props.widget?.style?.tint || 'blue',
+  accent: props.widget?.style?.accent || 0,
   columns: columnKeysFromQuery(q),
   sort_field: q.sort ? groupKeyFromQuery({ group_by: q.sort }) : 'modified',
   sort_order: q.sort?.order || 'desc',
@@ -354,6 +371,8 @@ const groupRelated = computed(() =>
 )
 const allGroupOptions = computed(() => [...groupOwn.value, ...groupRelated.value])
 const selectedGroup = computed(() => allGroupOptions.value.find((o) => o.key === form.group_key))
+const paletteColors = computed(() => (themeVersion.value, chartPalette()))
+
 const groupByIsDate = computed(() => !!selectedGroup.value?.isDate)
 
 // columns: own fields + related (both selectable as table columns)
@@ -478,12 +497,16 @@ async function runPreview() {
 }
 
 function save() {
+  let style = {}
+  if (form.widget_type === 'Number Card') style = { tint: form.tint }
+  else if (['Bar Chart', 'Line Chart', 'Area Chart'].includes(form.widget_type) && form.accent)
+    style = { accent: form.accent }
   emit('save', {
     widget_id: props.widget?.widget_id,
     title: form.title,
     widget_type: form.widget_type,
     query: buildQuery(),
-    style: form.widget_type === 'Number Card' ? { tint: form.tint } : {},
+    style,
   })
 }
 </script>
@@ -513,5 +536,17 @@ function save() {
 .icon-x:hover {
   color: var(--danger);
   background: var(--panel-2);
+}
+.wiz-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.wiz-dot.on {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--panel);
 }
 </style>
