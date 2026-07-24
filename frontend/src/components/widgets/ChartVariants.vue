@@ -5,8 +5,9 @@
         v-for="t in TYPES"
         :key="t.value"
         class="vt"
-        :class="{ on: widget.widget_type === t.value }"
-        :title="t.label"
+        :class="{ on: widget.widget_type === t.value, off: !rules.allowed.includes(t.value) }"
+        :disabled="!rules.allowed.includes(t.value)"
+        :title="rules.allowed.includes(t.value) ? t.label : rules.reasons[t.value]"
         @click="widget.widget_type = t.value"
       >
         <!-- bar -->
@@ -50,11 +51,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { chartPalette, themeVersion } from '@/lib/theme'
 
 const props = defineProps({
   widget: { type: Object, required: true }, // mutated in place: widget_type / style
+  result: { type: Object, default: null }, // used to judge category count
   defaultTint: { type: String, default: 'blue' },
 })
 
@@ -78,8 +80,61 @@ const isCartesian = computed(() =>
   ['Bar Chart', 'Line Chart', 'Area Chart'].includes(props.widget.widget_type)
 )
 const accent = computed(() => props.widget.style?.accent || 0)
-// theme-aware palette (recomputes when the theme flips)
 const palette = computed(() => (themeVersion.value, chartPalette()))
+
+// ---- form follows the data: which chart types actually suit this series ----
+const rules = computed(() => {
+  const grain = props.widget.query?.group_by?.time_grain
+  if (grain === 'hour') {
+    return {
+      allowed: ['Bar Chart', 'Line Chart', 'Area Chart'],
+      preferred: 'Bar Chart',
+      reasons: {
+        'Donut Chart': 'Hour-of-day is a distribution, not shares of a whole — bars show it best',
+        'Pie Chart': 'Hour-of-day is a distribution, not shares of a whole — bars show it best',
+      },
+    }
+  }
+  if (grain) {
+    return {
+      allowed: ['Line Chart', 'Area Chart', 'Bar Chart'],
+      preferred: 'Line Chart',
+      reasons: {
+        'Donut Chart': 'A time sequence is a trend, not shares of a whole — use a line',
+        'Pie Chart': 'A time sequence is a trend, not shares of a whole — use a line',
+      },
+    }
+  }
+  const n = props.result?.labels?.length ?? 0
+  if (n > 8) {
+    return {
+      allowed: ['Bar Chart'],
+      preferred: 'Bar Chart',
+      reasons: {
+        'Line Chart': 'Lines imply an order over time — categories need bars',
+        'Area Chart': 'Areas imply an order over time — categories need bars',
+        'Donut Chart': `Too many categories (${n}) for a readable pie — use bars`,
+        'Pie Chart': `Too many categories (${n}) for a readable pie — use bars`,
+      },
+    }
+  }
+  return {
+    allowed: ['Bar Chart', 'Donut Chart', 'Pie Chart'],
+    preferred: 'Bar Chart',
+    reasons: {
+      'Line Chart': 'Lines imply an order over time — categories need bars',
+      'Area Chart': 'Areas imply an order over time — categories need bars',
+    },
+  }
+})
+
+// snap to the best-practice type when the current one doesn't suit the data
+// (also silently corrects an AI that picked a donut for a time series)
+watchEffect(() => {
+  if (isSeries.value && !rules.value.allowed.includes(props.widget.widget_type)) {
+    props.widget.widget_type = rules.value.preferred
+  }
+})
 
 function setAccent(i) {
   props.widget.style = { ...(props.widget.style || {}), accent: i }
@@ -109,7 +164,7 @@ function setTint(name) {
   align-items: center;
   justify-content: center;
 }
-.vt:hover {
+.vt:hover:not(:disabled) {
   color: var(--ink);
   border-color: var(--blue-300);
 }
@@ -117,6 +172,10 @@ function setTint(name) {
   color: var(--blue);
   border-color: var(--blue);
   background: color-mix(in srgb, var(--blue) 8%, var(--panel));
+}
+.vt.off {
+  opacity: 0.32;
+  cursor: not-allowed;
 }
 .vsep {
   width: 1px;

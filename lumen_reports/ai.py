@@ -94,8 +94,11 @@ Rules:
    "aggregate": {"function": "sum", "field": "amount"},
    "group_by": {"field": "brand", "via": {"link_field": "item_code", "doctype": "Item"}},
    "filters": [["docstatus", "=", 1]]}
-- Prefer Bar Chart for categorical breakdowns, Line/Area for time series, Donut for shares (<=6 slices),
-  Number Card for single figures, Table for record lists.
+- Form follows the data — these are HARD rules, not taste:
+  * time series (any time_grain) -> Line or Area; hour-of-day distributions -> Bar.
+    NEVER Pie/Donut for anything time-based.
+  * categorical breakdown -> Bar; Donut/Pie ONLY for share-of-total with <=6 categories.
+  * single figure -> Number Card; record lists -> Table.
 - Dates: time_grain month unless the question implies daily/weekly/yearly.
 - Time-of-day questions (peak hours, busiest time): group by a Datetime field such as
   "creation" with time_grain "hour" — a Bar Chart of hour-of-day across all days.
@@ -696,6 +699,16 @@ def _try_widget(w):
 		return None, "Table query must use fields, not aggregate"
 	if widget_type not in ("Number Card", "Table") and kind != "series":
 		return None, "chart query needs aggregate + group_by"
+
+	# form follows the data — coerce chart types that don't suit the series
+	if kind == "series" and widget_type in ("Pie Chart", "Donut Chart"):
+		grain = (query.get("group_by") or {}).get("time_grain")
+		if grain == "hour":
+			w["widget_type"] = "Bar Chart"  # hour-of-day is a distribution
+		elif grain:
+			w["widget_type"] = "Line Chart"  # a time sequence is a trend
+		elif len(result.get("labels") or []) > 8:
+			w["widget_type"] = "Bar Chart"  # too many slices to read
 	return result, None
 
 

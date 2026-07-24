@@ -73,7 +73,7 @@
                   <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" :accent="entry.widget.style?.accent || 0" />
                 </div>
               </div>
-              <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" default-tint="blue" />
+              <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" :result="entry.result" default-tint="blue" />
             </div>
           </div>
         </template>

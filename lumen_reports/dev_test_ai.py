@@ -92,6 +92,21 @@ def run():
 		out["suggestions"] = answer["suggestions"]
 		out["questions"] = answer["questions"]
 
+		# best-practice coercion: a donut on an hour distribution becomes a bar
+		hour_donut = {
+			"title": "Peak Hours",
+			"widget_type": "Donut Chart",
+			"query": {
+				"doctype": "Sales Invoice",
+				"aggregate": {"function": "count"},
+				"group_by": {"field": "creation", "time_grain": "hour"},
+				"filters": [["docstatus", "=", 1]],
+			},
+		}
+		ai._generate = mock([_answer([hour_donut])])
+		coerced = ai.ask_ai("peak hours")
+		out["hour_donut_coerced_to"] = coerced["widgets"][0]["widget"]["widget_type"]
+
 		# batch repair: one bad widget in the first answer, fixed in the second
 		ai._generate = mock([_answer([KPI_WIDGET, BAD_WIDGET]), _answer([KPI_WIDGET, BRAND_WIDGET])])
 		answer2 = ai.ask_ai("sales dashboard")

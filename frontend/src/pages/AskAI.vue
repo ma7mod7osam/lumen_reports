@@ -226,7 +226,7 @@
               <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" :accent="entry.widget.style?.accent || 0" />
             </div>
           </div>
-          <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" :default-tint="KPI_TINTS[kpiIndex(i) % 4]" />
+          <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" :result="entry.result" :default-tint="KPI_TINTS[kpiIndex(i) % 4]" />
         </div>
       </div>
 
