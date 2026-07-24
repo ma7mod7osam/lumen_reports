@@ -153,8 +153,31 @@
     </div>
 
     <div v-else-if="clarify" class="panel mt-5" style="padding: 18px">
-      <div style="font-weight: 700">One more detail needed</div>
-      <p style="font-size: 13.5px; color: var(--ink-2); margin-top: 4px">{{ clarify }}</p>
+      <div class="flex items-start gap-3">
+        <div class="ic tint-blue" style="width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01" /><circle cx="12" cy="12" r="9.2" /></svg>
+        </div>
+        <div style="flex: 1; min-width: 0">
+          <div style="font-weight: 700">{{ clarify.question }}</div>
+          <div v-if="clarify.options?.length" class="mt-2 flex flex-wrap gap-2">
+            <button v-for="opt in clarify.options" :key="opt" class="chip" @click="answerClarify(opt)">
+              {{ opt }}
+            </button>
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <input
+              type="text"
+              v-model="clarifyReply"
+              placeholder="Type your answer…"
+              style="flex: 1; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-2); background: var(--panel); color: var(--ink); font-family: var(--font); font-size: 13.5px; outline: none; min-width: 0"
+              @keydown.enter="answerClarify(clarifyReply)"
+            />
+            <button class="lbtn sm primary" :disabled="!clarifyReply.trim()" @click="answerClarify(clarifyReply)">
+              Answer
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="askError" class="panel err mt-5" style="padding: 18px">
@@ -194,6 +217,45 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- refine: follow-up input + AI suggestions -->
+      <div class="panel mt-4" style="padding: 13px 16px">
+        <div class="flex items-center gap-2">
+          <input
+            type="text"
+            v-model="followUpText"
+            placeholder="Refine or add more… e.g. 'also show returns' or 'split it by territory'"
+            style="flex: 1; border: none; background: transparent; outline: none; font-family: var(--font); font-size: 14px; color: var(--ink); min-width: 0"
+            @keydown.enter="followUp(followUpText)"
+          />
+          <button class="lbtn sm primary" :disabled="followingUp || !followUpText.trim()" @click="followUp(followUpText)">
+            {{ followingUp ? 'Thinking…' : 'Add' }}
+          </button>
+        </div>
+        <div v-if="answer.suggestions?.length || answer.questions?.length" class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="mono" style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint)">Ideas</span>
+          <button
+            v-for="s in answer.suggestions || []"
+            :key="s"
+            class="chip"
+            :disabled="followingUp"
+            @click="followUp(s)"
+          >
+            + {{ s }}
+          </button>
+          <button
+            v-for="q in answer.questions || []"
+            :key="q"
+            class="chip"
+            style="border-style: dashed"
+            @click="followUpText = ''; followUpText = q + ' — '"
+            :title="'The AI asks: ' + q"
+          >
+            ? {{ q }}
+          </button>
+        </div>
+        <p v-if="followUpError" style="font-size: 12.5px; color: var(--danger); margin-top: 6px">{{ followUpError }}</p>
       </div>
 
       <!-- actions -->
@@ -271,7 +333,12 @@ const question = ref('')
 const asking = ref(false)
 const answer = ref(null)
 const askError = ref(null)
-const clarify = ref(null)
+const clarify = ref(null) // {question, options[]}
+const clarifyReply = ref('')
+const history = ref([]) // running conversation: [{role, text}]
+const followUpText = ref('')
+const followingUp = ref(false)
+const followUpError = ref('')
 
 const dashboards = ref([])
 const targetDashboard = ref('')
@@ -366,25 +433,83 @@ async function removeSiteKey() {
   applyStatus(await call('lumen_reports.ai.clear_site_ai_key'))
 }
 
-async function ask() {
-  if (!question.value.trim() || asking.value) return
+async function ask(promptText = null) {
+  // guard: template @click passes the event object, not a string
+  const text = (typeof promptText === 'string' ? promptText : question.value).trim()
+  if (!text || asking.value) return
   asking.value = true
   answer.value = null
   askError.value = null
   clarify.value = null
+  clarifyReply.value = ''
   pinnedSlug.value = ''
   pinError.value = ''
   try {
-    const response = await call('lumen_reports.ai.ask_ai', { prompt: question.value })
-    if (response.clarify) clarify.value = response.clarify
-    else {
+    const response = await call('lumen_reports.ai.ask_ai', {
+      prompt: text,
+      history: history.value,
+    })
+    history.value.push({ role: 'user', text })
+    if (response.clarify) {
+      clarify.value = { question: response.clarify, options: response.options || [] }
+      history.value.push({ role: 'assistant', text: response.clarify })
+    } else {
       answer.value = response
       newDashTitle.value = response.title || ''
+      history.value.push({ role: 'assistant', text: `Built: ${response.title}` })
     }
   } catch (e) {
     askError.value = e.messages?.[0] || e.message || String(e)
   } finally {
     asking.value = false
+  }
+}
+
+function answerClarify(reply) {
+  const text = (reply || '').trim()
+  if (!text) return
+  ask(text) // history already carries the question; the reply becomes the next turn
+}
+
+// follow-ups APPEND widgets to the current board instead of replacing it
+async function followUp(text) {
+  text = (text || '').trim()
+  if (!text || followingUp.value) return
+  followingUp.value = true
+  followUpError.value = ''
+  try {
+    const response = await call('lumen_reports.ai.ask_ai', {
+      prompt: text,
+      history: history.value,
+      existing_titles: answer.value.widgets.map((w) => w.widget.title),
+    })
+    history.value.push({ role: 'user', text })
+    if (response.clarify) {
+      followUpError.value = response.clarify
+      history.value.push({ role: 'assistant', text: response.clarify })
+      return
+    }
+    history.value.push({ role: 'assistant', text: `Added: ${response.title}` })
+    // append, skipping widgets we already have (by title + query identity)
+    const seen = new Set(answer.value.widgets.map((w) => w.widget.title + JSON.stringify(w.widget.query)))
+    for (const entry of response.widgets || []) {
+      const key = entry.widget.title + JSON.stringify(entry.widget.query)
+      if (!seen.has(key)) {
+        answer.value.widgets.push(entry)
+        seen.add(key)
+      }
+    }
+    answer.value.suggestions = response.suggestions || []
+    answer.value.questions = response.questions || []
+    if (response.dropped?.length) {
+      answer.value.dropped = [...(answer.value.dropped || []), ...response.dropped]
+    }
+    followUpText.value = ''
+    pinnedSlug.value = '' // board changed since last save
+  } catch (e) {
+    followUpError.value = e.messages?.[0] || e.message || String(e)
+  } finally {
+    followingUp.value = false
   }
 }
 
@@ -413,10 +538,14 @@ function reset() {
   answer.value = null
   askError.value = null
   clarify.value = null
+  clarifyReply.value = ''
   question.value = ''
   pinnedSlug.value = ''
   targetDashboard.value = ''
   newDashTitle.value = ''
+  history.value = []
+  followUpText.value = ''
+  followUpError.value = ''
 }
 </script>
 

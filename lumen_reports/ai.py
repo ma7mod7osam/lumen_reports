@@ -99,6 +99,20 @@ Rules:
 - Dates: time_grain month unless the question implies daily/weekly/yearly.
 - Date filter values MUST be concrete ISO dates ("2026-01-01"), never phrases like "this year".
   For "this year" use ["<date field>", "between", ["<jan 1>", "<dec 31>"]] with real dates.
+
+Be insightful, not literal:
+- Include widgets the user didn't explicitly request when they obviously help answer the
+  underlying business question — a trend over time, top/bottom performers, a share breakdown,
+  a KPI row for context. A good analyst anticipates.
+- Vary chart types by what tells the story best; never several widgets of the same shape
+  when one would do.
+
+Also include in the top-level JSON:
+- "suggestions": 2-4 short follow-up ideas the user could pick to extend this dashboard
+  (plain sentences like "Add a monthly trend of returns"; each must be answerable from the
+  metadata you were given).
+- "questions": up to 2 short clarifying questions, ONLY when a genuinely ambiguous choice
+  exists (time range, company, statuses...). Omit otherwise.
 Respond with ONLY the JSON object.""" % {"widget_types": json.dumps(WIDGET_TYPES)}
 
 
@@ -368,31 +382,51 @@ def _metadata_for(doctypes: list) -> dict:
 
 
 @frappe.whitelist()
-def ask_ai(prompt: str):
-	"""Natural-language question -> widget spec + executed result."""
+def ask_ai(prompt: str, history=None, existing_titles=None):
+	"""Natural-language question -> widget spec + executed result.
+
+	`history` is the running conversation ([{role, text}, ...], kept client
+	side) so follow-ups and answers to clarifying questions have context.
+	`existing_titles` are widgets already on the user's board, so a follow-up
+	adds new perspectives instead of recreating what exists."""
 	_require_user()
 	prompt = (prompt or "").strip()
 	if not prompt:
 		frappe.throw(_("Ask a question first"))
+	history = [h for h in (frappe.parse_json(history or "[]") or []) if isinstance(h, dict)][-10:]
+	existing_titles = [t for t in (frappe.parse_json(existing_titles or "[]") or []) if t][:20]
 
 	key, model, source = _resolve_key()
 	if not key:
 		frappe.throw(_("Add a Gemini API key in AI settings first"), title=_("No API key"))
 
+	history_block = ""
+	if history:
+		lines = "\n".join(f"{h.get('role', 'user')}: {str(h.get('text', ''))[:300]}" for h in history)
+		history_block = (
+			"Conversation so far (use it to resolve references like 'that', 'same period', "
+			"and answers to your earlier questions):\n" + lines + "\n\n"
+		)
+
 	# step 1: pick relevant doctypes
 	pick = _generate(
 		"You help build analytics widgets on a Frappe/ERPNext site.\n"
-		f"Question: {prompt}\n\n"
+		+ history_block
+		+ f"Latest user message: {prompt}\n\n"
 		"Available doctypes (pick the 1-3 most relevant for answering the question; "
 		"prefer transaction doctypes like Sales Invoice for revenue/sales questions):\n"
 		+ json.dumps(_readable_doctypes())
-		+ '\n\nRespond ONLY with JSON: {"doctypes": ["..."]} — or {"clarify": "<question>"} '
-		"if the request is too ambiguous to attempt.",
+		+ '\n\nRespond ONLY with JSON: {"doctypes": ["..."]} — or, if the request is too '
+		'ambiguous to attempt, {"clarify": "<one short question>", "options": ["<likely '
+		'answer>", ...]} with 2-4 tappable answer options when they are predictable.',
 		key,
 		model,
 	)
 	if pick.get("clarify"):
-		return {"clarify": pick["clarify"]}
+		return {
+			"clarify": pick["clarify"],
+			"options": [o for o in (pick.get("options") or []) if isinstance(o, str)][:4],
+		}
 	chosen = [d for d in (pick.get("doctypes") or []) if isinstance(d, str)]
 	if not chosen:
 		frappe.throw(_("The AI could not identify relevant data for that question."))
@@ -401,15 +435,24 @@ def ask_ai(prompt: str):
 	if not metadata:
 		frappe.throw(_("You don't have access to the data needed for that question."))
 
+	existing_block = ""
+	if existing_titles:
+		existing_block = (
+			"\n\nWidgets ALREADY on the user's board (do NOT recreate these — return only "
+			"new, different widgets that extend the board):\n" + json.dumps(existing_titles)
+		)
+
 	# step 2: build the widget spec
 	build_prompt = (
 		"You help build analytics widgets on a Frappe/ERPNext site.\n"
 		f"Today's date is {frappe.utils.nowdate()}.\n"
-		f"Question: {prompt}\n\n"
+		+ history_block
+		+ f"Latest user message: {prompt}\n\n"
 		f"{SPEC_GUIDE}\n\n"
 		"Metadata for the relevant doctypes (doctype -> fields; entries with "
 		"parent_doctype are line-item child tables of that parent):\n"
 		+ json.dumps(metadata, default=str)
+		+ existing_block
 	)
 	spec = _generate(build_prompt, key, model)
 	widgets, errors = _validate_widgets(spec)
@@ -449,6 +492,8 @@ def ask_ai(prompt: str):
 		"explanation": spec.get("explanation") or "",
 		"widgets": widgets,
 		"dropped": dropped,
+		"suggestions": [s for s in (spec.get("suggestions") or []) if isinstance(s, str)][:4],
+		"questions": [q for q in (spec.get("questions") or []) if isinstance(q, str)][:2],
 	}
 
 
@@ -630,8 +675,10 @@ def save_ai_result(widgets, title: str | None = None, slug: str | None = None):
 	if not isinstance(widgets, list) or not widgets:
 		frappe.throw(_("Nothing to save"))
 
+	# conversationally accumulated boards can exceed one generation's cap
+	max_save = 16
 	prepared = []
-	for w in widgets[:MAX_WIDGETS]:
+	for w in widgets[:max_save]:
 		prepared.append(
 			{
 				"widget_id": "ai" + frappe.generate_hash(length=6),

@@ -55,7 +55,13 @@ BAD_WIDGET = {
 
 
 def _answer(widgets):
-	return {"title": "Sales Overview", "explanation": "test", "widgets": json.loads(json.dumps(widgets))}
+	return {
+		"title": "Sales Overview",
+		"explanation": "test",
+		"widgets": json.loads(json.dumps(widgets)),
+		"suggestions": ["Add a monthly trend", "Show top customers"],
+		"questions": ["Which year?"],
+	}
 
 
 def run():
@@ -83,11 +89,37 @@ def run():
 		out["kpi_value"] = answer["widgets"][0]["result"]["value"]
 		out["brand_labels"] = answer["widgets"][1]["result"]["labels"]
 
+		out["suggestions"] = answer["suggestions"]
+		out["questions"] = answer["questions"]
+
 		# batch repair: one bad widget in the first answer, fixed in the second
 		ai._generate = mock([_answer([KPI_WIDGET, BAD_WIDGET]), _answer([KPI_WIDGET, BRAND_WIDGET])])
 		answer2 = ai.ask_ai("sales dashboard")
 		out["repair_widgets"] = len(answer2["widgets"])
 		out["repair_calls"] = calls["n"]  # pick + first + repair = 3
+
+		# history + existing_titles are accepted and forwarded into prompts
+		seen_prompts = []
+
+		def spy(prompt, key, model):
+			seen_prompts.append(prompt)
+			if len(seen_prompts) == 1:
+				return {"doctypes": ["Sales Invoice"]}
+			return _answer([BRAND_WIDGET])
+
+		ai._generate = spy
+		ai.ask_ai(
+			"also add brand split",
+			history=[{"role": "user", "text": "sales dashboard"}, {"role": "assistant", "text": "Built: Sales Overview"}],
+			existing_titles=["Total Revenue"],
+		)
+		out["history_in_prompt"] = "sales dashboard" in seen_prompts[0]
+		out["existing_titles_in_prompt"] = "Total Revenue" in seen_prompts[1]
+
+		# clarify with options passes through
+		ai._generate = lambda p, k, m: {"clarify": "Which company?", "options": ["Lumen Retail", "All"]}
+		clarified = ai.ask_ai("how are sales")
+		out["clarify_options"] = clarified.get("options")
 
 		# save as NEW dashboard
 		saved = ai.save_ai_result([w["widget"] for w in answer["widgets"]], title="AI Sales Overview")

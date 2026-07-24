@@ -103,6 +103,7 @@
   <AiAssist
     v-if="aiOpen"
     :edit-widget="aiWidget"
+    :existing-titles="widgets.map((w) => w.title)"
     @close="aiOpen = false"
     @add="onAiAdd"
     @apply="onAiApply"

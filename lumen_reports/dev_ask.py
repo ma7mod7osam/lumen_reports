@@ -41,6 +41,33 @@ def fix_stored_models():
 	return "ok"
 
 
+def conversation():
+	"""Live two-turn test: initial ask, then a follow-up that relies on history
+	and must not recreate existing widgets."""
+	try:
+		first = ai.ask_ai("revenue by brand")
+		titles = [w["widget"]["title"] for w in first["widgets"]]
+		second = ai.ask_ai(
+			"now also show it by item group, and add a total revenue card",
+			history=[
+				{"role": "user", "text": "revenue by brand"},
+				{"role": "assistant", "text": f"Built: {first['title']}"},
+			],
+			existing_titles=titles,
+		)
+		return {
+			"first_titles": titles,
+			"first_suggestions": first.get("suggestions"),
+			"second_titles": [w["widget"]["title"] for w in second["widgets"]],
+			"second_recreated_existing": any(
+				w["widget"]["title"] in titles for w in second["widgets"]
+			),
+			"second_suggestions": second.get("suggestions"),
+		}
+	except Exception:
+		return {"error": traceback.format_exc()[-600:]}
+
+
 def modify(prompt="turn it into a donut chart"):
 	"""Live test of modify_ai_widget against the brand widget."""
 	widget = {

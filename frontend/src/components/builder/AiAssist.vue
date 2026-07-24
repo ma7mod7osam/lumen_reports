@@ -38,6 +38,10 @@
 
         <template v-else-if="entries.length">
           <p v-if="explanation" style="font-size: 12.5px; color: var(--muted)">{{ explanation }}</p>
+          <div v-if="suggestions.length && !editWidget" class="flex flex-wrap items-center gap-2">
+            <span class="mono" style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint)">Ideas</span>
+            <button v-for="s in suggestions" :key="s" class="chip" @click="useSuggestion(s)">+ {{ s }}</button>
+          </div>
           <p v-if="dropped.length" style="font-size: 12.5px; color: var(--muted)">
             Skipped (no data): {{ dropped.join(', ') }}
           </p>
@@ -91,6 +95,8 @@ import NumberBody from '@/components/widgets/NumberBody.vue'
 const props = defineProps({
   // when set, the modal modifies this widget config instead of adding new ones
   editWidget: { type: Object, default: null },
+  // titles already on the dashboard draft, so the AI extends instead of repeating
+  existingTitles: { type: Array, default: () => [] },
 })
 const emit = defineEmits(['close', 'add', 'apply'])
 
@@ -102,6 +108,12 @@ const clarify = ref(null)
 const entries = ref([]) // [{widget, result}]
 const explanation = ref('')
 const dropped = ref([])
+const suggestions = ref([])
+
+function useSuggestion(s) {
+  prompt.value = s
+  generate()
+}
 
 onMounted(async () => {
   status.value = await call('lumen_reports.ai.get_ai_status')
@@ -128,7 +140,10 @@ async function generate() {
       explanation.value = entry.explanation || ''
       dropped.value = []
     } else {
-      const answer = await call('lumen_reports.ai.ask_ai', { prompt: prompt.value })
+      const answer = await call('lumen_reports.ai.ask_ai', {
+        prompt: prompt.value,
+        existing_titles: props.existingTitles,
+      })
       if (answer.clarify) {
         clarify.value = answer.clarify
         return
@@ -136,6 +151,7 @@ async function generate() {
       entries.value = answer.widgets || []
       explanation.value = answer.explanation || ''
       dropped.value = answer.dropped || []
+      suggestions.value = answer.suggestions || []
     }
   } catch (e) {
     error.value = e.messages?.[0] || e.message || String(e)
