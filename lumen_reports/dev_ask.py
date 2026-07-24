@@ -41,6 +41,21 @@ def fix_stored_models():
 	return "ok"
 
 
+def hour_grain():
+	"""Direct engine test: sales by hour of day (peak hours)."""
+	from lumen_reports import query_engine
+
+	result = query_engine.execute(
+		{
+			"doctype": "Sales Invoice",
+			"aggregate": {"function": "count"},
+			"group_by": {"field": "creation", "time_grain": "hour"},
+			"filters": [["docstatus", "=", 1]],
+		}
+	)
+	return dict(zip(result["labels"], result["values"]))
+
+
 def conversation():
 	"""Live two-turn test: initial ask, then a follow-up that relies on history
 	and must not recreate existing widgets."""

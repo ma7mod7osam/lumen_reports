@@ -56,6 +56,7 @@ STANDARD_FIELDS = {
 
 # DATE_FORMAT patterns per time grain (constructed server-side, never from input)
 TIME_GRAIN_FORMATS = {
+	"hour": "%H:00",  # hour-of-day across all days — peak-hours analysis
 	"day": "%Y-%m-%d",
 	"week": "%x-W%v",
 	"month": "%Y-%m",

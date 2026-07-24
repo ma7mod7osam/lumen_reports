@@ -81,11 +81,11 @@ def run():
 		return inner
 
 	try:
-		# multi-widget happy path + pruning of the empty widget
+		# multi-widget happy path: empty widgets are FLAGGED, never dropped
 		ai._generate = mock([_answer([KPI_WIDGET, BRAND_WIDGET, EMPTY_WIDGET])])
 		answer = ai.ask_ai("detailed sales dashboard")
-		out["widget_count"] = len(answer["widgets"])  # expect 2 after pruning
-		out["dropped"] = answer["dropped"]  # expect ["Empty Dimension"]
+		out["widget_count"] = len(answer["widgets"])  # expect 3 — nothing dropped
+		out["empty_flags"] = [w["empty"] for w in answer["widgets"]]  # [False, False, True]
 		out["kpi_value"] = answer["widgets"][0]["result"]["value"]
 		out["brand_labels"] = answer["widgets"][1]["result"]["labels"]
 

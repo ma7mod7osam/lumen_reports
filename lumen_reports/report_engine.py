@@ -32,6 +32,7 @@ AGG_FUNCTIONS = {"count": Count, "sum": Sum, "avg": Avg, "min": Min, "max": Max}
 FIELDNAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 TIME_GRAIN_FORMATS = {
+	"hour": "%H:00",  # hour-of-day across all days — peak-hours analysis
 	"day": "%Y-%m-%d",
 	"week": "%x-W%v",
 	"month": "%Y-%m",

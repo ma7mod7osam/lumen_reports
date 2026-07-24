@@ -317,6 +317,91 @@ def enrich_items():
 	return {"brands": len(BRANDS), "item_groups": len(ITEM_GROUPS), "items_updated": updated}
 
 
+SALES_PEOPLE = ["Ahmed Al-Rashid", "Sara Hassan", "Khalid Omar", "Noura Salem"]
+
+
+def add_sales_team():
+	"""Create demo sales persons and assign one to every demo invoice, so
+	salesperson-performance analysis has real shape."""
+	import random
+
+	random.seed(23)
+	if not frappe.db.exists("Sales Person", "All Sales Persons"):
+		frappe.get_doc(
+			{"doctype": "Sales Person", "sales_person_name": "All Sales Persons", "is_group": 1}
+		).insert(ignore_permissions=True)
+	for name in SALES_PEOPLE:
+		if not frappe.db.exists("Sales Person", name):
+			frappe.get_doc(
+				{
+					"doctype": "Sales Person",
+					"sales_person_name": name,
+					"parent_sales_person": "All Sales Persons",
+					"is_group": 0,
+				}
+			).insert(ignore_permissions=True)
+
+	invoices = frappe.get_all(
+		"Sales Invoice", filters={"company": DEMO_COMPANY}, fields=["name", "net_total"]
+	)
+	added = 0
+	for inv in invoices:
+		if frappe.db.exists("Sales Team", {"parent": inv.name, "parenttype": "Sales Invoice"}):
+			continue
+		row = frappe.new_doc("Sales Team")
+		row.update(
+			{
+				"parent": inv.name,
+				"parenttype": "Sales Invoice",
+				"parentfield": "sales_team",
+				"idx": 1,
+				"sales_person": random.choice(SALES_PEOPLE),
+				"allocated_percentage": 100,
+				"allocated_amount": inv.net_total,
+			}
+		)
+		row.db_insert()
+		added += 1
+	# child rows must mirror the submitted parent's docstatus
+	frappe.db.sql(
+		"""update `tabSales Team` st join `tabSales Invoice` si on si.name = st.parent
+		set st.docstatus = si.docstatus
+		where st.parenttype = 'Sales Invoice' and si.company = %s""",
+		(DEMO_COMPANY,),
+	)
+	frappe.db.commit()
+	frappe.cache.delete_keys("lumen_res|Sales Invoice|")
+	return {"sales_people": len(SALES_PEOPLE), "invoices_assigned": added}
+
+
+def scatter_transaction_hours():
+	"""Give demo invoices realistic in-store times (10:00-22:00, evening peak)
+	so hour-of-day (peak hours) analysis has shape. Sets creation + posting_time."""
+	import random
+
+	random.seed(11)
+	rows = frappe.get_all(
+		"Sales Invoice", filters={"company": DEMO_COMPANY}, fields=["name", "posting_date"]
+	)
+	for row in rows:
+		# weighted: evenings busiest, like a real shop
+		hour = random.choices(
+			list(range(10, 23)),
+			weights=[2, 3, 4, 4, 3, 3, 4, 6, 8, 9, 8, 5, 2],
+		)[0]
+		minute, second = random.randint(0, 59), random.randint(0, 59)
+		time_str = f"{hour:02d}:{minute:02d}:{second:02d}"
+		frappe.db.sql(
+			"""update `tabSales Invoice`
+			set creation = timestamp(posting_date, %s), posting_time = %s
+			where name = %s""",
+			(time_str, time_str, row.name),
+		)
+	frappe.db.commit()
+	frappe.cache.delete_keys("lumen_res|Sales Invoice|")
+	return {"updated": len(rows)}
+
+
 def backfill_territory():
 	"""The original ERPNext demo invoices snapshotted an empty territory.
 	Backfill from each invoice's customer so the territory breakdown is clean."""

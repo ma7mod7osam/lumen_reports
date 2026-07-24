@@ -72,7 +72,7 @@ Each <widget> is:
     "doctype": "<base doctype>",            // a line-item child table IF parent_doctype is set
     "parent_doctype": "<parent>",            // ONLY for line-item (child table) bases
     "aggregate": {"function": "count|sum|avg|min|max", "field": "<numeric field>"},  // omit field for count; omit aggregate for Table
-    "group_by": {"field": "<field>", "via": {"link_field": "<link>", "doctype": "<target>"}, "time_grain": "day|week|month|year"},
+    "group_by": {"field": "<field>", "via": {"link_field": "<link>", "doctype": "<target>"}, "time_grain": "hour|day|week|month|year"},
         // omit for Number Card; via only for related fields; time_grain only for Date/Datetime fields
     "fields": ["field", {"field": "f", "via": {...}}],  // Table only, max 8 columns
     "filters": [["<field>", "=|!=|>|<|>=|<=|like|in|between", value]],  // field may also be {"field","via"}
@@ -97,8 +97,21 @@ Rules:
 - Prefer Bar Chart for categorical breakdowns, Line/Area for time series, Donut for shares (<=6 slices),
   Number Card for single figures, Table for record lists.
 - Dates: time_grain month unless the question implies daily/weekly/yearly.
+- Time-of-day questions (peak hours, busiest time): group by a Datetime field such as
+  "creation" with time_grain "hour" — a Bar Chart of hour-of-day across all days.
 - Date filter values MUST be concrete ISO dates ("2026-01-01"), never phrases like "this year".
   For "this year" use ["<date field>", "between", ["<jan 1>", "<dec 31>"]] with real dates.
+
+Field matching — understanding beats guessing:
+- Users speak business language ("sales man", "branch", "cashier", "category"). Match it by
+  MEANING against both fieldname and label, including fields marked "custom": true (the
+  user added those themselves — they often hold exactly what the user means) and child
+  tables (e.g. salesperson data usually lives in the Sales Team child table's sales_person).
+- NEVER silently substitute an unrelated field. If nothing matches confidently, respond with
+  {"clarify": "<short question>", "options": ["<closest field label 1>", "<closest 2>", ...]}
+  naming the nearest fields you actually found — asking beats a wrong chart.
+- In "explanation", say explicitly how you mapped ambiguous words
+  (e.g. 'using Sales Team → Sales Person for "sales man"').
 
 Be insightful, not literal:
 - Include widgets the user didn't explicitly request when they obviously help answer the
@@ -341,14 +354,42 @@ def _readable_doctypes() -> list:
 	return [r for r in rows if r in readable]
 
 
+# dimension/measure fieldtypes carry the business meaning — they go first
+PROMPT_PRIORITY_FIELDTYPES = {
+	"Link",
+	"Select",
+	"Currency",
+	"Float",
+	"Int",
+	"Percent",
+	"Date",
+	"Datetime",
+	"Check",
+	"Data",
+}
+
+
+def _slim_one(r: dict) -> dict:
+	d = {"fieldname": r.get("fieldname"), "label": r.get("label"), "fieldtype": r.get("fieldtype")}
+	if r.get("custom"):
+		d["custom"] = True  # user-added field — business words often live here
+	return d
+
+
 def _slim_fields(payload: dict) -> dict:
-	"""Compact field metadata for the prompt: names, labels, types only."""
-
-	def slim(rows, keys=("fieldname", "label", "fieldtype")):
-		return [{k: r.get(k) for k in keys if r.get(k) is not None} for r in rows]
-
+	"""Compact field metadata for the prompt. Custom fields and dimension/
+	measure types are ranked FIRST so they survive the cap — big doctypes have
+	200+ fields and the user's own custom fields must never be cut off."""
+	fields = payload.get("fields", [])
+	ranked = sorted(
+		fields,
+		key=lambda f: (
+			0 if f.get("custom") else 1,
+			0 if f.get("fieldtype") in PROMPT_PRIORITY_FIELDTYPES else 1,
+		),
+	)
 	return {
-		"fields": slim(payload.get("fields", []))[:60],
+		"fields": [_slim_one(r) for r in ranked[:90]],
 		"numeric": [f["fieldname"] for f in payload.get("numeric", [])],
 		"date": [f["fieldname"] for f in payload.get("date", [])],
 		"related_fields": [
@@ -356,6 +397,34 @@ def _slim_fields(payload: dict) -> dict:
 			for r in payload.get("related_fields", [])
 		][:40],
 		"line_item_tables": payload.get("line_item_tables", []),
+	}
+
+
+def _mini_table_meta(child_doctype: str, parent_doctype: str) -> dict | None:
+	"""Ultra-compact metadata for secondary child tables (Sales Team, Payments,
+	Taxes...) so the model can find e.g. sales_person without a full payload."""
+	try:
+		meta = frappe.get_meta(child_doctype)
+	except Exception:
+		return None
+	fields = [
+		_slim_one(
+			{
+				"fieldname": df.fieldname,
+				"label": df.label,
+				"fieldtype": df.fieldtype,
+				"custom": df.get("is_custom_field"),
+			}
+		)
+		for df in meta.fields
+		if df.fieldtype in PROMPT_PRIORITY_FIELDTYPES and not df.hidden
+	][:15]
+	if not fields:
+		return None
+	return {
+		"parent_doctype": parent_doctype,
+		"note": "child table — use as base doctype with parent_doctype set",
+		"fields": fields,
 	}
 
 
@@ -367,14 +436,23 @@ def _metadata_for(doctypes: list) -> dict:
 		except Exception:
 			continue
 		out[doctype] = _slim_fields(meta_payload)
-		# include the first line-item table's metadata so line-grain queries work
-		for table in meta_payload.get("line_item_tables", [])[:1]:
+		tables = meta_payload.get("line_item_tables", [])
+		# first (main) line table gets full metadata for line-grain queries...
+		for table in tables[:1]:
 			try:
 				child_payload = get_doctype_fields(table["child_doctype"], parent_doctype=doctype)
 				out[table["child_doctype"]] = _slim_fields(child_payload)
 				out[table["child_doctype"]]["parent_doctype"] = doctype
 			except Exception:
 				pass
+		# ...the rest (Sales Team, Payments, ...) get compact metadata so the
+		# model can still find fields like sales_person instead of guessing
+		for table in tables[1:]:
+			if table["child_doctype"] in out:
+				continue
+			mini = _mini_table_meta(table["child_doctype"], doctype)
+			if mini:
+				out[table["child_doctype"]] = mini
 	return out
 
 
@@ -455,6 +533,12 @@ def ask_ai(prompt: str, history=None, existing_titles=None):
 		+ existing_block
 	)
 	spec = _generate(build_prompt, key, model)
+	# the model may realize only after seeing the metadata that it must ask
+	if isinstance(spec, dict) and spec.get("clarify"):
+		return {
+			"clarify": spec["clarify"],
+			"options": [o for o in (spec.get("options") or []) if isinstance(o, str)][:4],
+		}
 	widgets, errors = _validate_widgets(spec)
 
 	if errors:
@@ -478,20 +562,16 @@ def ask_ai(prompt: str, history=None, existing_titles=None):
 		detail = "; ".join(err for _i, _t, err in errors[:3]) or "no valid widgets"
 		frappe.throw(_("Couldn't build a working report for that question: {0}").format(detail))
 
-	# drop widgets whose data came back empty (e.g. a dimension nobody uses),
-	# as long as something informative remains — and say what was dropped
-	kept = [w for w in widgets if not _is_empty(w["result"])]
-	dropped = [w["widget"]["title"] for w in widgets if _is_empty(w["result"])]
-	if kept:
-		widgets = kept
-	else:
-		dropped = []
+	# never silently discard the user's intent: widgets whose data came back
+	# empty (no returns yet, no invoices today...) are flagged, not dropped —
+	# the UI lets the user include them for when data arrives
+	for w in widgets:
+		w["empty"] = _is_empty(w["result"])
 
 	return {
 		"title": spec.get("title") or prompt[:60],
 		"explanation": spec.get("explanation") or "",
 		"widgets": widgets,
-		"dropped": dropped,
 		"suggestions": [s for s in (spec.get("suggestions") or []) if isinstance(s, str)][:4],
 		"questions": [q for q in (spec.get("questions") or []) if isinstance(q, str)][:2],
 	}

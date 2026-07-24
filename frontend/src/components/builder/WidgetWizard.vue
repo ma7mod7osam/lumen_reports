@@ -92,6 +92,7 @@
               <div v-if="groupByIsDate" class="lfield">
                 <label>Time grain</label>
                 <select v-model="form.time_grain">
+                  <option value="hour">Hour of day</option>
                   <option value="day">Day</option>
                   <option value="week">Week</option>
                   <option value="month">Month</option>

@@ -194,16 +194,26 @@
         </div>
         <span class="badge b-amber"><span class="dot"></span>AI-generated · not saved yet</span>
       </div>
-      <p v-if="answer.dropped?.length" style="font-size: 12.5px; color: var(--muted); margin-bottom: 8px">
-        Skipped (no data): {{ answer.dropped.join(', ') }}
+      <p v-if="answer.widgets.some((e) => e.empty)" style="font-size: 12.5px; color: var(--muted); margin-bottom: 8px">
+        Widgets marked <b>No data yet</b> have nothing to show on this site right now — they're
+        excluded from saving by default; click the circle to include them anyway.
       </p>
 
       <div class="ai-grid">
         <div
           v-for="(entry, i) in answer.widgets"
           :key="i"
-          :class="entry.widget.widget_type === 'Number Card' ? 'ai-kpi' : entry.widget.widget_type === 'Table' ? 'ai-table' : 'ai-chart'"
+          class="ai-card"
+          :class="[
+            entry.widget.widget_type === 'Number Card' ? 'ai-kpi' : entry.widget.widget_type === 'Table' ? 'ai-table' : 'ai-chart',
+            { 'ai-off': !entry.included },
+          ]"
         >
+          <button class="ai-toggle" :class="{ on: entry.included }" :title="entry.included ? 'Included — click to exclude' : 'Excluded — click to include'" @click="entry.included = !entry.included">
+            <svg v-if="entry.included" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
+            <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <span v-if="entry.empty" class="badge b-amber ai-empty"><span class="dot"></span>No data yet</span>
           <div v-if="entry.widget.widget_type === 'Number Card'" class="panel kpi" style="height: 100%">
             <NumberBody :result="entry.result" :label="entry.widget.title" :tint="KPI_TINTS[kpiIndex(i) % 4]" />
           </div>
@@ -271,8 +281,8 @@
             class="lfield-mini"
             style="min-width: 190px"
           />
-          <button class="lbtn sm primary" :disabled="!newDashTitle.trim() || !!pinning" @click="saveAsNew">
-            {{ pinning === 'new' ? 'Creating…' : 'Save as new dashboard' }}
+          <button class="lbtn sm primary" :disabled="!newDashTitle.trim() || !!pinning || includedCount === 0" @click="saveAsNew">
+            {{ pinning === 'new' ? 'Creating…' : `Save as new dashboard (${includedCount})` }}
           </button>
           <span class="mono" style="font-size: 10px; color: var(--faint)">or</span>
           <select v-model="targetDashboard" class="lfield-mini">
@@ -281,7 +291,7 @@
               {{ d.dashboard_title }}
             </option>
           </select>
-          <button class="lbtn sm" :disabled="!targetDashboard || !!pinning" @click="appendToExisting">
+          <button class="lbtn sm" :disabled="!targetDashboard || !!pinning || includedCount === 0" @click="appendToExisting">
             {{ pinning === 'append' ? 'Adding…' : 'Add' }}
           </button>
           <router-link
@@ -302,7 +312,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { call } from 'frappe-ui'
 import ChartBody from '@/components/widgets/ChartBody.vue'
 import TableBody from '@/components/widgets/TableBody.vue'
@@ -348,6 +358,7 @@ const pinnedSlug = ref('')
 const pinError = ref('')
 
 const KPI_TINTS = ['blue', 'green', 'amber', 'violet']
+const includedCount = computed(() => (answer.value?.widgets || []).filter((w) => w.included).length)
 // tint counts only KPI cards so the rotation matches the saved dashboard
 function kpiIndex(i) {
   let n = 0
@@ -454,6 +465,7 @@ async function ask(promptText = null) {
       clarify.value = { question: response.clarify, options: response.options || [] }
       history.value.push({ role: 'assistant', text: response.clarify })
     } else {
+      response.widgets = (response.widgets || []).map((e) => ({ ...e, included: !e.empty }))
       answer.value = response
       newDashTitle.value = response.title || ''
       history.value.push({ role: 'assistant', text: `Built: ${response.title}` })
@@ -495,15 +507,12 @@ async function followUp(text) {
     for (const entry of response.widgets || []) {
       const key = entry.widget.title + JSON.stringify(entry.widget.query)
       if (!seen.has(key)) {
-        answer.value.widgets.push(entry)
+        answer.value.widgets.push({ ...entry, included: !entry.empty })
         seen.add(key)
       }
     }
     answer.value.suggestions = response.suggestions || []
     answer.value.questions = response.questions || []
-    if (response.dropped?.length) {
-      answer.value.dropped = [...(answer.value.dropped || []), ...response.dropped]
-    }
     followUpText.value = ''
     pinnedSlug.value = '' // board changed since last save
   } catch (e) {
@@ -526,12 +535,16 @@ async function saveResult(payload, mode) {
   }
 }
 
+function includedWidgets() {
+  return answer.value.widgets.filter((w) => w.included).map((w) => w.widget)
+}
+
 function saveAsNew() {
-  saveResult({ widgets: answer.value.widgets.map((w) => w.widget), title: newDashTitle.value }, 'new')
+  saveResult({ widgets: includedWidgets(), title: newDashTitle.value }, 'new')
 }
 
 function appendToExisting() {
-  saveResult({ widgets: answer.value.widgets.map((w) => w.widget), slug: targetDashboard.value }, 'append')
+  saveResult({ widgets: includedWidgets(), slug: targetDashboard.value }, 'append')
 }
 
 function reset() {
@@ -567,6 +580,41 @@ function reset() {
   grid-column: span 12;
   min-height: 300px;
   max-height: 430px;
+}
+.ai-card {
+  position: relative;
+}
+.ai-card.ai-off > .panel {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+.ai-toggle {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  z-index: 5;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border-2);
+  background: var(--panel);
+  color: var(--faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+.ai-toggle.on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.ai-empty {
+  position: absolute;
+  top: -9px;
+  right: 10px;
+  z-index: 5;
 }
 @media (max-width: 900px) {
   .ai-kpi {

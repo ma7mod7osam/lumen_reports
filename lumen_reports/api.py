@@ -223,6 +223,7 @@ def get_doctype_fields(doctype: str, parent_doctype: str | None = None):
 				"label": df.label or df.fieldname,
 				"fieldtype": df.fieldtype,
 				"options": df.options if df.fieldtype in ("Select", "Link") else None,
+				"custom": 1 if df.get("is_custom_field") else 0,
 			}
 		)
 	# standard fields are always available

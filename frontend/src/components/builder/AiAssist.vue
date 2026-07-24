@@ -42,15 +42,25 @@
             <span class="mono" style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint)">Ideas</span>
             <button v-for="s in suggestions" :key="s" class="chip" @click="useSuggestion(s)">+ {{ s }}</button>
           </div>
-          <p v-if="dropped.length" style="font-size: 12.5px; color: var(--muted)">
-            Skipped (no data): {{ dropped.join(', ') }}
+          <p v-if="entries.some((e) => e.empty)" style="font-size: 12.5px; color: var(--muted)">
+            Some widgets have <b>no data on this site yet</b> (no returns, nothing today, …). They're
+            excluded by default — tick them to add anyway; they'll fill in when the data exists.
           </p>
           <div class="preview-grid">
             <div
               v-for="(entry, i) in entries"
               :key="i"
-              :class="entry.widget.widget_type === 'Number Card' ? 'pv-kpi' : entry.widget.widget_type === 'Table' ? 'pv-table' : 'pv-chart'"
+              class="pv-card"
+              :class="[
+                entry.widget.widget_type === 'Number Card' ? 'pv-kpi' : entry.widget.widget_type === 'Table' ? 'pv-table' : 'pv-chart',
+                { 'pv-off': !entry.included },
+              ]"
             >
+              <button class="pv-toggle" :class="{ on: entry.included }" :title="entry.included ? 'Included — click to exclude' : 'Excluded — click to include'" @click="entry.included = !entry.included">
+                <svg v-if="entry.included" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
+                <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
+              </button>
+              <span v-if="entry.empty" class="badge b-amber pv-empty"><span class="dot"></span>No data yet</span>
               <div v-if="entry.widget.widget_type === 'Number Card'" class="panel kpi" style="height: 100%">
                 <NumberBody :result="entry.result" :label="entry.widget.title" :tint="entry.widget.style?.tint || 'blue'" />
               </div>
@@ -75,9 +85,10 @@
         <button
           v-if="entries.length"
           class="lbtn primary"
+          :disabled="!editWidget && includedCount === 0"
           @click="confirm"
         >
-          {{ editWidget ? 'Apply change' : `Add ${entries.length} widget${entries.length > 1 ? 's' : ''}` }}
+          {{ editWidget ? 'Apply change' : `Add ${includedCount} widget${includedCount === 1 ? '' : 's'}` }}
         </button>
       </div>
     </template>
@@ -85,7 +96,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { call } from 'frappe-ui'
 import Modal from '@/components/builder/Modal.vue'
 import ChartBody from '@/components/widgets/ChartBody.vue'
@@ -105,10 +116,11 @@ const prompt = ref('')
 const loading = ref(false)
 const error = ref(null)
 const clarify = ref(null)
-const entries = ref([]) // [{widget, result}]
+const entries = ref([]) // [{widget, result, empty, included}]
 const explanation = ref('')
-const dropped = ref([])
 const suggestions = ref([])
+
+const includedCount = computed(() => entries.value.filter((e) => e.included).length)
 
 function useSuggestion(s) {
   prompt.value = s
@@ -148,9 +160,9 @@ async function generate() {
         clarify.value = answer.clarify
         return
       }
-      entries.value = answer.widgets || []
+      // empty widgets stay visible but excluded by default — the user decides
+      entries.value = (answer.widgets || []).map((e) => ({ ...e, included: !e.empty }))
       explanation.value = answer.explanation || ''
-      dropped.value = answer.dropped || []
       suggestions.value = answer.suggestions || []
     }
   } catch (e) {
@@ -162,7 +174,7 @@ async function generate() {
 
 function confirm() {
   if (props.editWidget) emit('apply', entries.value[0].widget)
-  else emit('add', entries.value.map((entry) => entry.widget))
+  else emit('add', entries.value.filter((e) => e.included).map((entry) => entry.widget))
 }
 </script>
 
@@ -187,6 +199,41 @@ function confirm() {
   grid-column: span 12;
   min-height: 220px;
   max-height: 300px;
+}
+.pv-card {
+  position: relative;
+}
+.pv-card.pv-off > .panel {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+.pv-toggle {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  z-index: 5;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-2);
+  background: var(--panel);
+  color: var(--faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+}
+.pv-toggle.on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.pv-empty {
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  z-index: 5;
 }
 @media (max-width: 700px) {
   .pv-kpi {
