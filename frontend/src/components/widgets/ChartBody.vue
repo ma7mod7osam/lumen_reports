@@ -5,7 +5,7 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
-import { formatNumber } from '@/lib/palette'
+import { formatNumber, formatValue } from '@/lib/palette'
 import { cssv, chartPalette, themeVersion } from '@/lib/theme'
 
 const props = defineProps({
@@ -124,7 +124,8 @@ function tooltipChrome(trigger) {
     padding: [6, 10],
     textStyle: { color: cssv('--bg'), fontSize: 12, fontFamily: 'Plus Jakarta Sans' },
     extraCssText: 'border-radius:8px;box-shadow:' + cssv('--shadow-md') + ';',
-    valueFormatter: (v) => formatNumber(v),
+    valueFormatter: (v) =>
+      props.result?.format ? formatValue(v, props.result.format) : formatNumber(v),
   }
 }
 

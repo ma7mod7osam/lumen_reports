@@ -98,7 +98,8 @@ def execute(query: dict, extra_filters: list | None = None) -> dict:
 
 	meta = frappe.get_meta(doctype)  # raises DoesNotExistError for unknown doctypes
 
-	if meta.istable or query.get("parent_doctype") or _uses_related_fields(query):
+	needs_expr = (query.get("aggregate") or {}).get("expr") is not None
+	if meta.istable or query.get("parent_doctype") or needs_expr or _uses_related_fields(query):
 		from lumen_reports import report_engine
 
 		return report_engine.execute(query, extra_filters)

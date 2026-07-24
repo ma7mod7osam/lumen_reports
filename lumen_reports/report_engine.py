@@ -24,8 +24,14 @@ from frappe import _
 from frappe.query_builder import Order
 from frappe.query_builder.functions import Avg, Count, Max, Min, Sum
 from pypika import CustomFunction
+from pypika.terms import Function as PkFunction
+from pypika.terms import LiteralValue, NullValue
 
 DateFormat = CustomFunction("DATE_FORMAT", ["field", "format"])
+TimeToSec = CustomFunction("TIME_TO_SEC", ["field"])
+TimeOf = CustomFunction("TIME", ["field"])
+DateDiff = CustomFunction("DATEDIFF", ["b", "a"])
+NullIf = CustomFunction("NULLIF", ["a", "b"])
 
 AGG_FUNCTIONS = {"count": Count, "sum": Sum, "avg": Avg, "min": Min, "max": Max}
 
@@ -156,6 +162,66 @@ class _Resolver:
 		return df.fieldtype if df else "Data"
 
 
+# ---------------------------------------------------------------- expressions
+
+# whitelisted computed-metric operations — each compiles to a fixed SQL shape;
+# fields are meta-validated, numbers are parameter-safe, nothing else is allowed
+EXPR_OPS = {"clock", "diff_hours", "diff_minutes", "diff_days", "add", "sub", "mul", "div"}
+EXPR_MAX_DEPTH = 5
+RESULT_FORMATS = {"clock", "hours", "minutes", "days", "percent"}
+
+
+def _timestampdiff_seconds(a, b):
+	# TIMESTAMPDIFF's unit is a keyword, not a string literal
+	return PkFunction("TIMESTAMPDIFF", LiteralValue("SECOND"), a, b)
+
+
+def _resolve_expr(resolver, node, depth=0):
+	"""Compile a computed-metric expression node to a query-builder term.
+
+	node: field name (str) | number | {"op": ..., "args": [node, ...]}
+	e.g. average office hours: {"op": "diff_hours", "args": ["in_time", "out_time"]}
+	     average check-in time: {"op": "clock", "args": ["in_time"]}
+	"""
+	if depth > EXPR_MAX_DEPTH:
+		frappe.throw(_("Expression too deeply nested"))
+	if isinstance(node, (int, float)) and not isinstance(node, bool):
+		return node
+	if isinstance(node, str):
+		return resolver.column(node)
+	if isinstance(node, dict) and node.get("via"):
+		return resolver.column(node)  # related field reference
+	if not isinstance(node, dict):
+		frappe.throw(_("Invalid expression node"))
+
+	op = node.get("op")
+	if op not in EXPR_OPS:
+		frappe.throw(_("Unsupported expression op: {0}").format(str(op)[:20]))
+	args = node.get("args") or []
+	if not (1 <= len(args) <= 4):
+		frappe.throw(_("Expression op {0} needs 1-4 arguments").format(op))
+	terms = [_resolve_expr(resolver, a, depth + 1) for a in args]
+
+	if op == "clock":
+		# time-of-day as fractional hours since midnight (works for Datetime and Time)
+		return TimeToSec(TimeOf(terms[0])) / 3600.0
+	if op == "diff_hours":
+		return _timestampdiff_seconds(terms[0], terms[1]) / 3600.0
+	if op == "diff_minutes":
+		return _timestampdiff_seconds(terms[0], terms[1]) / 60.0
+	if op == "diff_days":
+		return DateDiff(terms[1], terms[0])  # b - a in days
+	if op == "add":
+		return terms[0] + terms[1]
+	if op == "sub":
+		return terms[0] - terms[1]
+	if op == "mul":
+		return terms[0] * terms[1]
+	if op == "div":
+		return terms[0] / NullIf(terms[1], 0)  # never divide by zero
+	return NullValue()
+
+
 def _slot_ref(slot: dict):
 	"""A group_by/aggregate/sort slot names a field and may carry a `via` join
 	spec beside it: {"field": "brand", "via": {...}}. Return the field
@@ -264,11 +330,18 @@ def _aggregate(resolver, query, raw_filters):
 		frappe.throw(_("Unsupported aggregate function: {0}").format(function[:20]))
 	agg_fn = AGG_FUNCTIONS[function]
 
-	if function == "count":
+	if aggregate.get("expr") is not None:
+		# computed metric (office hours, check-in time, margins, ...)
+		value_expr = agg_fn(_resolve_expr(resolver, aggregate["expr"]))
+	elif function == "count":
 		value_expr = Count(resolver.base.name)
 	else:
 		value_col = resolver.column(_slot_ref(aggregate))
 		value_expr = agg_fn(value_col)
+
+	result_format = aggregate.get("format")
+	if result_format not in RESULT_FORMATS:
+		result_format = None
 
 	group_by = query.get("group_by") or {}
 
@@ -294,7 +367,10 @@ def _aggregate(resolver, query, raw_filters):
 		q = q.select(value_expr.as_("value"))
 		rows = q.run(as_dict=True)
 		value = rows[0].get("value") if rows else 0
-		return {"result_type": "number", "value": value or 0}
+		out = {"result_type": "number", "value": value or 0}
+		if result_format:
+			out["format"] = result_format
+		return out
 
 	q = q.select(label_col.as_("label"), value_expr.as_("value")).groupby(label_col)
 	# order by the expressions themselves (aliases aren't resolvable in ORDER BY here)
@@ -305,11 +381,14 @@ def _aggregate(resolver, query, raw_filters):
 	q = q.limit(MAX_GROUPS)
 
 	rows = q.run(as_dict=True)
-	return {
+	out = {
 		"result_type": "series",
 		"labels": [r.get("label") for r in rows],
 		"values": [r.get("value") or 0 for r in rows],
 	}
+	if result_format:
+		out["format"] = result_format
+	return out
 
 
 def _rows(resolver, query, raw_filters):

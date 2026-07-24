@@ -41,6 +41,36 @@ def fix_stored_models():
 	return "ok"
 
 
+def expressions():
+	"""Direct engine tests for computed metrics."""
+	from lumen_reports import query_engine
+
+	base = {"doctype": "Sales Invoice", "filters": [["docstatus", "=", 1]]}
+	out = {}
+	# avg payment terms in days (enriched invoices: due = posting + 30)
+	out["avg_terms_days"] = query_engine.execute(
+		{**base, "aggregate": {"function": "avg", "expr": {"op": "diff_days", "args": ["posting_date", "due_date"]}, "format": "days"}}
+	)
+	# avg transaction time-of-day (hours since midnight; evening-weighted demo)
+	out["avg_txn_clock"] = query_engine.execute(
+		{**base, "aggregate": {"function": "avg", "expr": {"op": "clock", "args": ["creation"]}, "format": "clock"}}
+	)
+	# avg unpaid ratio = outstanding / grand_total
+	out["avg_unpaid_ratio"] = query_engine.execute(
+		{**base, "aggregate": {"function": "avg", "expr": {"op": "div", "args": ["outstanding_amount", "grand_total"]}, "format": "percent"}}
+	)
+	# grouped: avg office-hours-style diff per territory (creation->modified is
+	# not meaningful data-wise, but proves diff_hours + group_by compose)
+	out["diff_hours_by_territory"] = query_engine.execute(
+		{
+			**base,
+			"aggregate": {"function": "avg", "expr": {"op": "diff_hours", "args": ["posting_date", "due_date"]}, "format": "hours"},
+			"group_by": {"field": "territory"},
+		}
+	)
+	return out
+
+
 def hour_grain():
 	"""Direct engine test: sales by hour of day (peak hours)."""
 	from lumen_reports import query_engine

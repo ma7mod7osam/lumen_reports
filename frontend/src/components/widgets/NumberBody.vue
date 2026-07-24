@@ -17,7 +17,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { formatNumber } from '@/lib/palette'
+import { formatNumber, formatValue } from '@/lib/palette'
 
 const props = defineProps({
   result: { type: Object, default: null },
@@ -29,6 +29,7 @@ const tintClass = computed(() => `tint-${props.tint || 'blue'}`)
 
 const display = computed(() => {
   if (!props.result) return '—'
+  if (props.result.format) return formatValue(props.result.value, props.result.format)
   const compact = Number(props.result.value) >= 100000
   return formatNumber(props.result.value, { compact })
 })

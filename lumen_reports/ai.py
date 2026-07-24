@@ -94,6 +94,17 @@ Rules:
    "aggregate": {"function": "sum", "field": "amount"},
    "group_by": {"field": "brand", "via": {"link_field": "item_code", "doctype": "Item"}},
    "filters": [["docstatus", "=", 1]]}
+- Computed metrics — for values that exist in no field (average check-in time, office
+  hours, margins), use "aggregate": {"function": "avg", "expr": <node>, "format": "..."}
+  instead of "field". <node> is a field name, a number, or {"op": ..., "args": [<node>, <node>]}:
+  * clock(x) — time of day as hours since midnight. Average check-in time:
+    {"function": "avg", "expr": {"op": "clock", "args": ["in_time"]}, "format": "clock"}
+  * diff_hours(a,b) / diff_minutes(a,b) / diff_days(a,b) — b minus a. Average office hours:
+    {"function": "avg", "expr": {"op": "diff_hours", "args": ["in_time", "out_time"]}, "format": "hours"}
+  * add/sub/mul/div(a,b) — arithmetic. Unpaid ratio:
+    {"function": "avg", "expr": {"op": "div", "args": ["outstanding_amount", "grand_total"]}, "format": "percent"}
+  ONLY these ops exist; every field in expr must exist on the base doctype.
+  "format" one of clock|hours|minutes|days|percent controls display.
 - Form follows the data — these are HARD rules, not taste:
   * time series (any time_grain) -> Line or Area; hour-of-day distributions -> Bar.
     NEVER Pie/Donut for anything time-based.
