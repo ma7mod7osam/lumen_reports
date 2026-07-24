@@ -12,8 +12,55 @@ const props = defineProps({
   widgetType: { type: String, required: true },
   result: { type: Object, default: null },
   selectable: { type: Boolean, default: false },
+  // the widget's query — used to detect time series (never folded)
+  query: { type: Object, default: null },
 })
 const emit = defineEmits(['select'])
+
+// ---- high-cardinality handling ------------------------------------------
+// beyond a handful of identities a pie is unreadable and a bar axis is a
+// picket fence: fold the tail into a muted, non-interactive "Other" bucket
+const MAX_SLICES = 8 // pie/donut: 7 + Other
+const MAX_BARS = 20 // bar: 19 + Other
+
+function otherLabel(count) {
+  return `Other (${count} more)`
+}
+
+function isOther(name) {
+  return typeof name === 'string' && /^Other \(\d+ more\)$/.test(name)
+}
+
+function isTimeSeries() {
+  return !!props.query?.group_by?.time_grain
+}
+
+function foldSeries(result, maxItems) {
+  const labels = result.labels || []
+  const values = result.values || []
+  if (labels.length <= maxItems) return { labels, values }
+  // rank by value; keep the engine's original order for the survivors
+  const ranked = labels
+    .map((label, i) => ({ value: Number(values[i]) || 0, i }))
+    .sort((a, b) => b.value - a.value)
+  const keep = new Set(ranked.slice(0, maxItems - 1).map((r) => r.i))
+  const outLabels = []
+  const outValues = []
+  let rest = 0
+  let restCount = 0
+  labels.forEach((label, i) => {
+    if (keep.has(i)) {
+      outLabels.push(label)
+      outValues.push(values[i])
+    } else {
+      rest += Number(values[i]) || 0
+      restCount++
+    }
+  })
+  outLabels.push(otherLabel(restCount))
+  outValues.push(rest)
+  return { labels: outLabels, values: outValues }
+}
 
 defineExpose({
   getDataURL: () => chart?.getDataURL({ pixelRatio: 2, backgroundColor: cssv('--panel') }),
@@ -46,7 +93,10 @@ function ensureChart() {
   resizeObserver = new ResizeObserver(() => chart?.resize())
   resizeObserver.observe(chartEl.value)
   chart.on('click', (params) => {
-    if (props.selectable && params.name) emit('select', { label: params.name })
+    // the synthetic "Other" bucket is not a real dimension value — never cross-filter on it
+    if (props.selectable && params.name && !isOther(params.name)) {
+      emit('select', { label: params.name })
+    }
   })
   // debug/test handle
   chartEl.value.__lumen_chart = chart
@@ -96,20 +146,44 @@ function baseCartesian(labels) {
 }
 
 function buildOption() {
-  const { labels = [], values = [] } = props.result || {}
   const type = props.widgetType
   const palette = chartPalette()
   const c1 = palette[0]
 
+  // fold long categorical tails into "Other"; never fold a time axis
+  let { labels = [], values = [] } = props.result || {}
+  if (type === 'Pie Chart' || type === 'Donut Chart') {
+    ;({ labels, values } = foldSeries({ labels, values }, MAX_SLICES))
+  } else if (type === 'Bar Chart' && !isTimeSeries()) {
+    ;({ labels, values } = foldSeries({ labels, values }, MAX_BARS))
+  }
+
   if (type === 'Bar Chart') {
     const option = baseCartesian(labels)
+    // crowded categorical axes get slanted, smaller labels
+    if (labels.length > 10) {
+      option.xAxis.axisLabel = {
+        ...option.xAxis.axisLabel,
+        rotate: 42,
+        fontSize: 9,
+        interval: 0,
+        hideOverlap: true,
+      }
+      option.grid.bottom = 8
+    }
+    const muted = cssv('--baseline')
     return {
       ...option,
       series: [
         {
           type: 'bar',
-          data: values,
-          itemStyle: { color: c1, borderRadius: [5, 5, 5, 5] },
+          data: labels.map((label, i) => ({
+            value: values[i],
+            // the Other bucket must not impersonate a real category
+            itemStyle: isOther(label)
+              ? { color: muted, borderRadius: [5, 5, 5, 5] }
+              : { color: c1, borderRadius: [5, 5, 5, 5] },
+          })),
           barMaxWidth: 42,
           cursor: props.selectable ? 'pointer' : 'default',
           emphasis: { itemStyle: { color: cssv('--blue-600') } },
@@ -169,6 +243,7 @@ function buildOption() {
         itemWidth: 10,
         itemHeight: 10,
         itemGap: 14,
+        type: 'scroll',
         textStyle: {
           color: cssv('--ink-2'),
           fontSize: 12.5,
@@ -186,7 +261,9 @@ function buildOption() {
           data: labels.map((label, i) => ({
             name: label,
             value: values[i],
-            itemStyle: { color: palette[i % palette.length] },
+            itemStyle: {
+              color: isOther(label) ? cssv('--baseline') : palette[i % palette.length],
+            },
           })),
           itemStyle: { borderColor: cssv('--panel'), borderWidth: 2, borderRadius: 3 },
           label: { show: false },

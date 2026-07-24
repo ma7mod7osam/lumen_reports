@@ -209,7 +209,7 @@
               </div>
               <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
                 <TableBody v-if="form.widget_type === 'Table'" :result="preview" />
-                <ChartBody v-else :widget-type="form.widget_type" :result="preview" />
+                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" />
               </div>
             </div>
           </div>

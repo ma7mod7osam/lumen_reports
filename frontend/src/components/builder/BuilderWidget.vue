@@ -19,7 +19,7 @@
     :error="error"
   >
     <TableBody v-if="widget.widget_type === 'Table'" :result="result" />
-    <ChartBody v-else :widget-type="widget.widget_type" :result="result" />
+    <ChartBody v-else :widget-type="widget.widget_type" :result="result" :query="widget.query" />
   </WidgetCard>
 </template>
 

@@ -21,9 +21,14 @@
           </h1>
         </div>
         <div class="flex items-center gap-3" style="padding-bottom: 4px">
-          <span v-if="dashboard.data.auto_refresh" class="badge" :class="liveConnected ? 'b-green' : 'b-gray'">
+          <span
+            v-if="dashboard.data.auto_refresh"
+            class="badge"
+            :class="liveConnected ? 'b-green' : 'b-gray'"
+            :title="liveConnected ? 'Widgets refresh automatically when data changes' : socketTimedOut ? 'Realtime unavailable — the websocket server could not be reached. Data still loads normally.' : 'Connecting to realtime…'"
+          >
             <span class="dot" :class="{ 'animate-pulse': liveConnected }"></span>
-            {{ liveConnected ? 'Live' : 'Connecting…' }}
+            {{ liveConnected ? 'Live' : socketTimedOut ? 'Offline' : 'Connecting…' }}
           </span>
           <router-link
             v-if="dashboard.data.can_edit"
@@ -115,6 +120,8 @@ const props = defineProps({ slug: { type: String, required: true } })
 const filterValues = ref({})
 const refreshKey = ref(0)
 const liveConnected = ref(false)
+const socketTimedOut = ref(false) // "Connecting…" shouldn't lie forever
+let socketTimeoutTimer = null
 // multiple cross-filters at once, keyed by dimension so a new value within the
 // same dimension replaces (you can't be two territories), but different
 // dimensions accumulate (Open AND North), combined with AND like the filter bar
@@ -190,15 +197,21 @@ let debounceTimer
 
 onMounted(() => {
   socket = getSocket()
-  socket.on('connect', () => (liveConnected.value = true))
+  socket.on('connect', () => {
+    liveConnected.value = true
+    socketTimedOut.value = false
+    clearTimeout(socketTimeoutTimer)
+  })
   socket.on('disconnect', () => (liveConnected.value = false))
   if (socket.connected) liveConnected.value = true
+  else socketTimeoutTimer = setTimeout(() => (socketTimedOut.value = !socket?.connected), 10000)
   socket.on('lumen_reports:invalidate', onInvalidate)
 })
 
 onBeforeUnmount(() => {
   socket?.off('lumen_reports:invalidate', onInvalidate)
   clearTimeout(debounceTimer)
+  clearTimeout(socketTimeoutTimer)
 })
 
 function onInvalidate(message) {

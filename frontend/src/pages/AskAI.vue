@@ -213,7 +213,7 @@
             </div>
             <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
               <TableBody v-if="entry.widget.widget_type === 'Table'" :result="entry.result" />
-              <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" />
+              <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" />
             </div>
           </div>
         </div>

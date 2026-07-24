@@ -27,6 +27,7 @@
       ref="body"
       :widget-type="widget.widget_type"
       :result="data"
+      :query="widget.query"
       :selectable="selectable"
       @select="onSelect"
     />
