@@ -46,13 +46,34 @@ WIDGET_TYPES = [
 	"Horizontal Bar",
 	"Line Chart",
 	"Area Chart",
+	"Sparkline",
+	"Waterfall",
 	"Donut Chart",
 	"Pie Chart",
+	"Rings",
+	"Radar",
 	"Funnel",
 	"Gauge",
+	"Scatter",
 	"Heatmap",
 	"Table",
 ]
+
+# chart types that need a plain one-value-per-category series
+SERIES_TYPES = (
+	"Bar Chart",
+	"Horizontal Bar",
+	"Line Chart",
+	"Area Chart",
+	"Sparkline",
+	"Waterfall",
+	"Donut Chart",
+	"Pie Chart",
+	"Rings",
+	"Funnel",
+)
+# types whose shape is judged separately (number / matrix / points)
+SPECIAL_TYPES = ("Number Card", "Gauge", "Table", "Heatmap", "Scatter", "Radar")
 
 SPEC_GUIDE = """You output a JSON object describing one or more Lumen widgets:
 {
@@ -78,7 +99,9 @@ Each <widget> is:
     "aggregate": {"function": "count|sum|avg|min|max", "field": "<numeric field>"},  // omit field for count; omit aggregate for Table
     "group_by": {"field": "<field>", "via": {"link_field": "<link>", "doctype": "<target>"}, "time_grain": "hour|weekday|day|week|month|year"},
         // omit for Number Card/Gauge; via only for related fields; time_grain only for Date/Datetime fields
-    "group_by2": {...same shape...},   // Heatmap ONLY: second dimension (columns)
+    "group_by2": {...same shape...},   // Heatmap (columns) or Radar (one web per value) ONLY
+    "aggregate_y": {"function": "...", "field": "..."},     // Scatter ONLY: the vertical measure
+    "aggregate_size": {"function": "...", "field": "..."},  // Scatter ONLY, optional: bubble size
     "fields": ["field", {"field": "f", "via": {...}}],  // Table only, max 8 columns
     "filters": [["<field>", "=|!=|>|<|>=|<=|like|in|between", value]],  // field may also be {"field","via"}
     "sort": {"field": "<field>", "order": "asc|desc"},  // Table only
@@ -121,6 +144,24 @@ Rules:
   * Heatmap -> exactly two dimensions via group_by (rows) + group_by2 (columns).
     THE form for busy-times questions: {"group_by": {"field": "creation", "time_grain": "weekday"},
     "group_by2": {"field": "creation", "time_grain": "hour"}}.
+  * Sparkline -> a compact trend beside a headline figure: a TIME series (day/week/month grain)
+    when the point is "where is this heading", not the individual periods. Never categorical.
+  * Waterfall -> how a total is built up or drawn down step by step (cash in/out, monthly
+    contributions to a year total, budget variance). Values may be negative. <=8 steps.
+    A closing "Total" bar is added automatically — do not add one yourself.
+  * Rings -> 2-5 headline metrics as progress dials. With "style": {"target": <number>} each
+    ring is progress toward that target; without one, each ring is its share of the total.
+  * Radar -> comparing 3-10 metrics/spokes, optionally for up to 4 entities at once.
+    One web: group_by = the spokes. Several webs: group_by = spokes, group_by2 = the entity
+    (e.g. scorecard per warehouse: group_by item_group, group_by2 warehouse).
+  * Scatter -> a RELATIONSHIP between two measures, one point per category:
+    group_by = what a point is, "aggregate" = x, "aggregate_y" = y, optional "aggregate_size".
+    Example — price vs volume per item:
+    {"doctype": "Sales Invoice Item", "parent_doctype": "Sales Invoice",
+     "group_by": {"field": "item_code"},
+     "aggregate": {"function": "avg", "field": "rate"},
+     "aggregate_y": {"function": "sum", "field": "qty"},
+     "aggregate_size": {"function": "count"}, "filters": [["docstatus", "=", 1]]}
   * single figure -> Number Card; record lists -> Table.
 - Dates: time_grain month unless the question implies daily/weekly/yearly.
 - Time-of-day questions (peak hours, busiest time): group by a Datetime field such as
@@ -724,20 +765,38 @@ def _try_widget(w):
 		return None, "Table query must use fields, not aggregate"
 	if widget_type == "Heatmap" and kind != "matrix":
 		return None, "Heatmap needs BOTH group_by (rows) and group_by2 (columns)"
-	if kind == "matrix" and widget_type != "Heatmap":
-		return None, "two-dimensional group_by2 results can only be shown as a Heatmap"
-	if widget_type not in ("Number Card", "Gauge", "Table", "Heatmap") and kind != "series":
+	if widget_type == "Scatter" and kind != "points":
+		return None, "Scatter needs aggregate (x) AND aggregate_y (y) plus a group_by"
+	if widget_type == "Radar" and kind not in ("series", "matrix"):
+		return None, "Radar needs aggregate + group_by (the spokes)"
+	if kind == "matrix" and widget_type not in ("Heatmap", "Radar"):
+		return None, "two-dimensional group_by2 results can only be a Heatmap or a Radar"
+	if kind == "points" and widget_type != "Scatter":
+		return None, "a query with aggregate_y can only be shown as a Scatter"
+	if widget_type in SERIES_TYPES and kind != "series":
 		return None, "chart query needs aggregate + group_by"
 
 	# form follows the data — coerce chart types that don't suit the series
-	if kind == "series" and widget_type in ("Pie Chart", "Donut Chart", "Funnel", "Horizontal Bar"):
+	if kind == "series":
 		grain = (query.get("group_by") or {}).get("time_grain")
-		if grain in ("hour", "weekday"):
-			w["widget_type"] = "Bar Chart"  # a distribution, not shares/rank
-		elif grain:
-			w["widget_type"] = "Line Chart"  # a time sequence is a trend
-		elif widget_type in ("Pie Chart", "Donut Chart") and len(result.get("labels") or []) > 8:
-			w["widget_type"] = "Horizontal Bar"  # too many slices — ranked bars read best
+		count = len(result.get("labels") or [])
+		shares = ("Pie Chart", "Donut Chart", "Funnel", "Horizontal Bar", "Rings", "Radar")
+		if widget_type in shares:
+			if grain in ("hour", "weekday"):
+				w["widget_type"] = "Bar Chart"  # a distribution, not shares/rank
+			elif grain:
+				w["widget_type"] = "Line Chart"  # a time sequence is a trend
+			elif widget_type in ("Pie Chart", "Donut Chart") and count > 8:
+				w["widget_type"] = "Horizontal Bar"  # too many slices — ranked bars read best
+			elif widget_type == "Rings" and count > 5:
+				w["widget_type"] = "Horizontal Bar"  # rings run out of radius
+			elif widget_type == "Radar" and count > 10:
+				w["widget_type"] = "Horizontal Bar"  # too many spokes to read
+		# a sparkline traces a sequence; a waterfall accumulates along one
+		elif widget_type in ("Sparkline", "Waterfall") and not grain and count > 8:
+			w["widget_type"] = "Horizontal Bar"
+		elif widget_type == "Sparkline" and grain in ("hour", "weekday"):
+			w["widget_type"] = "Bar Chart"  # a distribution has no running trend
 	return result, None
 
 
@@ -751,6 +810,8 @@ def _is_empty(result):
 		return not (result.get("rows") or [])
 	if kind == "matrix":
 		return not (result.get("rows") or []) or not (result.get("cols") or [])
+	if kind == "points":
+		return not (result.get("points") or [])
 	return False  # a number (even 0) is signal
 
 
@@ -759,7 +820,10 @@ def _is_empty(result):
 
 DEFAULT_SIZES = {
 	"Number Card": {"w": 3, "h": 2},
+	"Sparkline": {"w": 3, "h": 3},
 	"Gauge": {"w": 3, "h": 3},
+	"Rings": {"w": 4, "h": 4},
+	"Radar": {"w": 4, "h": 5},
 	"Heatmap": {"w": 12, "h": 5},
 	"Table": {"w": 12, "h": 5},
 	"default": {"w": 6, "h": 5},

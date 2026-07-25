@@ -1,6 +1,7 @@
 <template>
   <div class="vbar" @click.stop>
-    <template v-if="isSeries">
+    <!-- one row of values: the interchangeable chart family -->
+    <template v-if="isSeriesShape && seriesType">
       <button
         v-for="t in TYPES"
         :key="t.value"
@@ -10,22 +11,9 @@
         :title="rules.allowed.includes(t.value) ? t.label : rules.reasons[t.value]"
         @click="widget.widget_type = t.value"
       >
-        <!-- bar -->
-        <svg v-if="t.value === 'Bar Chart'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4.5" height="9" rx="1" /><rect x="10" y="5" width="4.5" height="16" rx="1" /><rect x="17" y="9" width="4.5" height="12" rx="1" /></svg>
-        <!-- ranked / horizontal bars -->
-        <svg v-else-if="t.value === 'Horizontal Bar'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="17" height="4" rx="1" /><rect x="3" y="10" width="12" height="4" rx="1" /><rect x="3" y="16" width="7" height="4" rx="1" /></svg>
-        <!-- funnel -->
-        <svg v-else-if="t.value === 'Funnel'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16l-3 5H7L4 4Z" /><path d="M8 11h8l-2 4h-4l-2-4Z" opacity="0.75" /><path d="M10.6 17h2.8l-.9 3.5h-1L10.6 17Z" opacity="0.5" /></svg>
-        <!-- line -->
-        <svg v-else-if="t.value === 'Line Chart'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 5.5-6 4.5 4L21 6" /></svg>
-        <!-- area -->
-        <svg v-else-if="t.value === 'Area Chart'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M3 20V16l5.5-6 4.5 4L21 6v14H3Z" opacity="0.45" /><path d="m3 16 5.5-6 4.5 4L21 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
-        <!-- donut -->
-        <svg v-else-if="t.value === 'Donut Chart'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4.5"><circle cx="12" cy="12" r="7.5" /></svg>
-        <!-- pie -->
-        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9h-9V3Z" /><path d="M14 2.2A9 9 0 0 1 21.8 10H14V2.2Z" opacity="0.55" /></svg>
+        <ChartIcon :type="t.value" />
       </button>
-      <template v-if="isCartesian">
+      <template v-if="hasAccent">
         <span class="vsep"></span>
         <button
           v-for="(c, i) in palette"
@@ -39,7 +27,32 @@
       </template>
     </template>
 
-    <template v-else-if="widget.widget_type === 'Gauge' || widget.widget_type === 'Heatmap'">
+    <!-- two-dimensional results read as a grid or as overlaid webs -->
+    <template v-else-if="isMatrix">
+      <button
+        v-for="t in MATRIX_TYPES"
+        :key="t.value"
+        class="vt"
+        :class="{ on: widget.widget_type === t.value, off: !matrixRules.allowed.includes(t.value) }"
+        :disabled="!matrixRules.allowed.includes(t.value)"
+        :title="matrixRules.allowed.includes(t.value) ? t.label : matrixRules.reasons[t.value]"
+        @click="widget.widget_type = t.value"
+      >
+        <ChartIcon :type="t.value" />
+      </button>
+      <span class="vsep"></span>
+      <button
+        v-for="(c, i) in palette"
+        :key="i"
+        class="vc"
+        :class="{ on: accent === i }"
+        :style="{ background: c }"
+        :title="'Color ' + (i + 1)"
+        @click="setAccent(i)"
+      ></button>
+    </template>
+
+    <template v-else-if="isPoints || widget.widget_type === 'Gauge'">
       <span class="mono vlabel">Color</span>
       <button
         v-for="(c, i) in palette"
@@ -70,10 +83,11 @@
 <script setup>
 import { computed, watchEffect } from 'vue'
 import { chartPalette, themeVersion } from '@/lib/theme'
+import ChartIcon from '@/components/widgets/ChartIcon.vue'
 
 const props = defineProps({
   widget: { type: Object, required: true }, // mutated in place: widget_type / style
-  result: { type: Object, default: null }, // used to judge category count
+  result: { type: Object, default: null }, // used to judge shape + category count
   defaultTint: { type: String, default: 'blue' },
 })
 
@@ -82,9 +96,17 @@ const TYPES = [
   { value: 'Horizontal Bar', label: 'Ranked bars' },
   { value: 'Line Chart', label: 'Line' },
   { value: 'Area Chart', label: 'Area' },
+  { value: 'Sparkline', label: 'Sparkline' },
+  { value: 'Waterfall', label: 'Waterfall' },
   { value: 'Donut Chart', label: 'Donut' },
   { value: 'Pie Chart', label: 'Pie' },
+  { value: 'Rings', label: 'Radial rings' },
+  { value: 'Radar', label: 'Radar' },
   { value: 'Funnel', label: 'Funnel' },
+]
+const MATRIX_TYPES = [
+  { value: 'Heatmap', label: 'Heatmap' },
+  { value: 'Radar', label: 'Radar — one web per row' },
 ]
 const TINTS = [
   { name: 'blue', color: '#1463FF' },
@@ -92,12 +114,24 @@ const TINTS = [
   { name: 'amber', color: '#C9821B' },
   { name: 'violet', color: '#6D4AFF' },
 ]
+// single-colour charts wear the accent; categorical ones use the whole palette
+const ACCENT_TYPES = [
+  'Bar Chart',
+  'Horizontal Bar',
+  'Line Chart',
+  'Area Chart',
+  'Sparkline',
+  'Waterfall',
+  'Radar',
+]
 
 const SERIES_TYPES = new Set(TYPES.map((t) => t.value))
-const isSeries = computed(() => SERIES_TYPES.has(props.widget.widget_type))
-const isCartesian = computed(() =>
-  ['Bar Chart', 'Line Chart', 'Area Chart'].includes(props.widget.widget_type)
-)
+const shape = computed(() => props.result?.result_type || 'series')
+const isSeriesShape = computed(() => shape.value === 'series')
+const isMatrix = computed(() => shape.value === 'matrix')
+const isPoints = computed(() => shape.value === 'points')
+const seriesType = computed(() => SERIES_TYPES.has(props.widget.widget_type))
+const hasAccent = computed(() => ACCENT_TYPES.includes(props.widget.widget_type))
 const accent = computed(() => props.widget.style?.accent || 0)
 const palette = computed(() => (themeVersion.value, chartPalette()))
 
@@ -105,34 +139,45 @@ const palette = computed(() => (themeVersion.value, chartPalette()))
 const TIME_REASON = 'A time sequence is a trend, not shares or ranks — use a line'
 const DIST_REASON = 'A time distribution, not shares or ranks — bars show it best'
 const CAT_REASON = 'Lines imply an order over time — categories need bars'
+const SPARK_REASON = 'A sparkline traces a trend over time — categories have no sequence'
 
 const rules = computed(() => {
   const grain = props.widget.query?.group_by?.time_grain
+  const n = props.result?.labels?.length ?? 0
+
   if (grain === 'hour' || grain === 'weekday') {
+    // 7 weekdays make a readable web; 24 hours do not
+    const allowed = ['Bar Chart', 'Line Chart', 'Area Chart']
+    if (grain === 'weekday') allowed.push('Radar')
     return {
-      allowed: ['Bar Chart', 'Line Chart', 'Area Chart'],
+      allowed,
       preferred: 'Bar Chart',
       reasons: {
         'Horizontal Bar': DIST_REASON,
         'Donut Chart': DIST_REASON,
         'Pie Chart': DIST_REASON,
         Funnel: DIST_REASON,
+        Rings: DIST_REASON,
+        Radar: 'Too many spokes for a readable web — use bars',
+        Sparkline: 'A distribution has no running trend to trace',
+        Waterfall: 'Nothing accumulates across a distribution — use bars',
       },
     }
   }
   if (grain) {
     return {
-      allowed: ['Line Chart', 'Area Chart', 'Bar Chart'],
+      allowed: ['Line Chart', 'Area Chart', 'Bar Chart', 'Sparkline', 'Waterfall'],
       preferred: 'Line Chart',
       reasons: {
         'Horizontal Bar': TIME_REASON,
         'Donut Chart': TIME_REASON,
         'Pie Chart': TIME_REASON,
         Funnel: TIME_REASON,
+        Rings: TIME_REASON,
+        Radar: TIME_REASON,
       },
     }
   }
-  const n = props.result?.labels?.length ?? 0
   if (n > 8) {
     return {
       allowed: ['Bar Chart', 'Horizontal Bar'],
@@ -140,18 +185,49 @@ const rules = computed(() => {
       reasons: {
         'Line Chart': CAT_REASON,
         'Area Chart': CAT_REASON,
+        Sparkline: SPARK_REASON,
+        Waterfall: `Too many steps (${n}) to follow a running balance`,
         'Donut Chart': `Too many categories (${n}) for a readable pie — use ranked bars`,
         'Pie Chart': `Too many categories (${n}) for a readable pie — use ranked bars`,
         Funnel: `Too many categories (${n}) for a funnel`,
+        Rings: `Too many categories (${n}) for rings — five at most`,
+        Radar: `Too many axes (${n}) for a readable web`,
       },
     }
   }
   return {
-    allowed: ['Bar Chart', 'Horizontal Bar', 'Donut Chart', 'Pie Chart', 'Funnel'],
+    allowed: [
+      'Bar Chart',
+      'Horizontal Bar',
+      'Donut Chart',
+      'Pie Chart',
+      'Funnel',
+      'Rings',
+      'Radar',
+      'Waterfall',
+    ],
     preferred: 'Bar Chart',
     reasons: {
       'Line Chart': CAT_REASON,
       'Area Chart': CAT_REASON,
+      Sparkline: SPARK_REASON,
+    },
+  }
+})
+
+const matrixRules = computed(() => {
+  // rows become the spokes, columns become one web each
+  const spokes = props.result?.rows?.length ?? 0
+  const webs = props.result?.cols?.length ?? 0
+  const allowed = ['Heatmap']
+  if (webs <= 4 && spokes >= 3 && spokes <= 10) allowed.push('Radar')
+  return {
+    allowed,
+    reasons: {
+      Radar:
+        webs > 4
+          ? `${webs} overlaid webs would be unreadable — a heatmap scales`
+          : `A radar needs 3-10 spokes, this has ${spokes}`,
     },
   }
 })
@@ -159,8 +235,15 @@ const rules = computed(() => {
 // snap to the best-practice type when the current one doesn't suit the data
 // (also silently corrects an AI that picked a donut for a time series)
 watchEffect(() => {
-  if (isSeries.value && !rules.value.allowed.includes(props.widget.widget_type)) {
+  if (
+    isSeriesShape.value &&
+    seriesType.value &&
+    !rules.value.allowed.includes(props.widget.widget_type)
+  ) {
     props.widget.widget_type = rules.value.preferred
+  }
+  if (isMatrix.value && !matrixRules.value.allowed.includes(props.widget.widget_type)) {
+    props.widget.widget_type = 'Heatmap'
   }
 })
 

@@ -164,6 +164,15 @@ def run(prompt="revenue by brand"):
 		elif result.get("result_type") == "rows":
 			summary["rows"] = len(result.get("rows") or [])
 			summary["columns"] = [c.get("label") for c in result.get("columns") or []]
+		elif result.get("result_type") == "matrix":
+			summary["rows"] = result.get("rows")
+			summary["cols"] = len(result.get("cols") or [])
+		elif result.get("result_type") == "points":
+			summary["axes"] = [result.get("x_label"), result.get("y_label")]
+			summary["points"] = len(result.get("points") or [])
+			summary["first"] = (result.get("points") or [])[:2]
+		if w.get("style"):
+			summary["style"] = w["style"]
 		out["widgets"].append(summary)
 	return out
 
@@ -215,3 +224,63 @@ def new_charts_raw():
 		}
 	except Exception:
 		return {"traceback": traceback.format_exc()[-1500:]}
+
+
+def scatter():
+	"""Direct engine test for the points (bubble scatter) shape."""
+	from lumen_reports import query_engine
+
+	out = {}
+	# price vs volume per item, bubbles sized by number of invoice lines
+	try:
+		r = query_engine.execute(
+			{
+				"doctype": "Sales Invoice Item",
+				"parent_doctype": "Sales Invoice",
+				"filters": [["docstatus", "=", 1]],
+				"group_by": {"field": "item_code"},
+				"aggregate": {"function": "avg", "field": "rate"},
+				"aggregate_y": {"function": "sum", "field": "qty"},
+				"aggregate_size": {"function": "count"},
+			}
+		)
+		out["price_vs_volume"] = {
+			"type": r.get("result_type"),
+			"x_label": r.get("x_label"),
+			"y_label": r.get("y_label"),
+			"n": len(r.get("points") or []),
+			"first3": (r.get("points") or [])[:3],
+		}
+	except Exception:
+		out["price_vs_volume"] = traceback.format_exc()[-600:]
+
+	# guard rails
+	for name, q in {
+		"no_group_by": {
+			"doctype": "Sales Invoice",
+			"aggregate": {"function": "count"},
+			"aggregate_y": {"function": "sum", "field": "grand_total"},
+		},
+		"size_without_y": {
+			"doctype": "Sales Invoice",
+			"group_by": {"field": "status"},
+			"aggregate": {"function": "count"},
+			"aggregate_size": {"function": "count"},
+		},
+		"with_group_by2": {
+			"doctype": "Sales Invoice",
+			"group_by": {"field": "status"},
+			"group_by2": {"field": "territory"},
+			"aggregate": {"function": "count"},
+			"aggregate_y": {"function": "sum", "field": "grand_total"},
+		},
+	}.items():
+		try:
+			query_engine.execute(q)
+			out[name] = "NO ERROR (bad)"
+		except Exception as e:
+			import frappe
+
+			frappe.clear_last_message()
+			out[name] = str(e)[:90]
+	return out

@@ -45,5 +45,25 @@ export function resultToCsv(result, title = 'data') {
   if (result.result_type === 'number') {
     return toCsv([[title], [result.value]])
   }
+  if (result.result_type === 'matrix') {
+    // one row per heatmap row, one column per heatmap column
+    return toCsv([
+      [title, ...result.cols],
+      ...result.rows.map((r, i) => [r, ...(result.values[i] || [])]),
+    ])
+  }
+  if (result.result_type === 'points') {
+    const sized = result.points.some((p) => p.size != null)
+    const header = [title, result.x_label || 'x', result.y_label || 'y']
+    if (sized) header.push('size')
+    return toCsv([
+      header,
+      ...result.points.map((p) => {
+        const row = [p.label, p.x, p.y]
+        if (sized) row.push(p.size)
+        return row
+      }),
+    ])
+  }
   return null
 }

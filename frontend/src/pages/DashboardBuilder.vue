@@ -213,7 +213,10 @@ function openWizard(widget = null) {
 const DEFAULT_SIZES = {
   'Number Card': { w: 3, h: 2 },
   Table: { w: 12, h: 5 },
+  Sparkline: { w: 3, h: 3 },
   Gauge: { w: 3, h: 3 },
+  Rings: { w: 4, h: 4 },
+  Radar: { w: 4, h: 5 },
   Heatmap: { w: 12, h: 5 },
   default: { w: 6, h: 5 },
 }

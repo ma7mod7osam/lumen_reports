@@ -36,6 +36,34 @@ const emit = defineEmits(['select'])
 // picket fence: fold the tail into a muted, non-interactive "Other" bucket
 const MAX_SLICES = 8 // pie/donut: 7 + Other
 const MAX_BARS = 20 // bar: 19 + Other
+const MAX_RADAR_AXES = 10 // a radar web past this is unreadable
+const MAX_RADAR_SERIES = 4 // overlapping webs muddy each other
+const MAX_RINGS = 5 // concentric rings run out of radius fast
+
+function prettyLabel(text) {
+  if (!text) return ''
+  return String(text)
+    .replace(/_/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase())
+}
+
+/** rank -> cap -> restore the engine's ordering (weekdays in calendar order) */
+function topPairs(labels, values, max) {
+  let pairs = labels.map((label, i) => [label, Number(values[i]) || 0])
+  if (pairs.length > max) {
+    const keep = new Set(
+      [...pairs]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, max)
+        .map((p) => p[0])
+    )
+    pairs = pairs.filter((p) => keep.has(p[0]))
+  }
+  if (pairs.length && pairs.every((p) => WEEKDAY_ORDER.includes(p[0]))) {
+    pairs.sort((a, b) => WEEKDAY_ORDER.indexOf(a[0]) - WEEKDAY_ORDER.indexOf(b[0]))
+  }
+  return pairs
+}
 
 function otherLabel(count) {
   return `Other (${count} more)`
@@ -168,6 +196,9 @@ function buildOption() {
 
   if (type === 'Heatmap') return buildHeatmap(palette)
   if (type === 'Gauge') return buildGauge(palette)
+  if (type === 'Scatter') return buildScatter(palette)
+  if (type === 'Radar') return buildRadar(palette)
+  if (type === 'Rings') return buildRings(palette)
 
   // fold long categorical tails into "Other"; never fold a time axis
   let { labels = [], values = [] } = props.result || {}
@@ -182,6 +213,133 @@ function buildOption() {
     zipped.sort((a, b) => WEEKDAY_ORDER.indexOf(a[0]) - WEEKDAY_ORDER.indexOf(b[0]))
     labels = zipped.map((z) => z[0])
     values = zipped.map((z) => z[1])
+  }
+
+  if (type === 'Waterfall') {
+    // each value is a delta; bars float on an invisible running-balance stack
+    const inflow = palette[1 % palette.length]
+    const outflow = cssv('--danger')
+    const bases = []
+    const spans = []
+    const colors = []
+    let running = 0
+    values.forEach((v) => {
+      const n = Number(v) || 0
+      bases.push(n >= 0 ? running : running + n)
+      spans.push(Math.abs(n))
+      colors.push(n >= 0 ? inflow : outflow)
+      running += n
+    })
+    // closing balance
+    const cats = [...labels, 'Total']
+    bases.push(0)
+    spans.push(Math.abs(running))
+    colors.push(c1)
+
+    const deltaAt = (i) => (i < values.length ? Number(values[i]) || 0 : running)
+    const option = baseCartesian(cats)
+    if (cats.length > 10) {
+      option.xAxis.axisLabel = { ...option.xAxis.axisLabel, rotate: 42, fontSize: 9, hideOverlap: true }
+      option.grid.bottom = 8
+    }
+    return {
+      ...option,
+      tooltip: {
+        ...tooltipChrome('axis'),
+        formatter: (entries) => {
+          const i = entries[0].dataIndex
+          const raw = deltaAt(i)
+          const sign = i < values.length && raw > 0 ? '+' : ''
+          return `<b>${cats[i]}</b> ${sign}${formatNumber(raw)}`
+        },
+      },
+      series: [
+        {
+          type: 'bar',
+          stack: 'wf',
+          data: bases,
+          itemStyle: { color: 'transparent' },
+          emphasis: { itemStyle: { color: 'transparent' } },
+          silent: true,
+        },
+        {
+          type: 'bar',
+          stack: 'wf',
+          data: spans.map((value, i) => ({
+            value,
+            itemStyle: { color: colors[i], borderRadius: 4 },
+          })),
+          barMaxWidth: 34,
+          label: {
+            show: true,
+            position: 'top',
+            color: cssv('--faint'),
+            fontSize: 9.5,
+            fontFamily: 'IBM Plex Mono',
+            formatter: ({ dataIndex }) => {
+              const raw = deltaAt(dataIndex)
+              const sign = dataIndex < values.length && raw > 0 ? '+' : ''
+              return sign + formatNumber(raw, { compact: true })
+            },
+          },
+        },
+      ],
+    }
+  }
+
+  if (type === 'Sparkline') {
+    const nums = values.map((v) => Number(v) || 0)
+    const last = nums.length ? nums[nums.length - 1] : 0
+    const first = nums.length ? nums[0] : 0
+    const change = first ? ((last - first) / Math.abs(first)) * 100 : 0
+    const up = change >= 0
+    return {
+      grid: { left: 0, right: 0, top: '54%', bottom: 0 },
+      tooltip: { ...tooltipChrome('axis'), axisPointer: { type: 'line' } },
+      xAxis: { type: 'category', data: labels, show: false, boundaryGap: false },
+      yAxis: { type: 'value', show: false, min: 'dataMin', max: 'dataMax' },
+      series: [
+        {
+          type: 'line',
+          data: nums,
+          smooth: 0.4,
+          showSymbol: false,
+          lineStyle: { width: 2.4, color: c1, cap: 'round' },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: echarts.color.modifyAlpha(c1, 0.3) },
+              { offset: 1, color: echarts.color.modifyAlpha(c1, 0) },
+            ]),
+          },
+        },
+      ],
+      graphic: [
+        {
+          type: 'text',
+          left: 1,
+          top: 2,
+          style: {
+            text: props.result?.format ? formatValue(last, props.result.format) : formatNumber(last),
+            fill: cssv('--ink'),
+            fontSize: 26,
+            fontWeight: 800,
+            fontFamily: 'Plus Jakarta Sans',
+          },
+        },
+        {
+          type: 'text',
+          left: 2,
+          top: 34,
+          style: {
+            text: `${up ? '▲' : '▼'} ${Math.abs(change).toFixed(1)}%${labels.length ? ` since ${labels[0]}` : ''}`,
+            fill: up ? cssv('--success') : cssv('--danger'),
+            fontSize: 11.5,
+            fontWeight: 700,
+            fontFamily: 'Plus Jakarta Sans',
+          },
+        },
+      ],
+    }
   }
 
   if (type === 'Horizontal Bar') {
@@ -467,6 +625,220 @@ function buildGauge(palette) {
         },
         data: [{ value: Math.max(0, Math.min(pct, 100)) }],
       },
+    ],
+  }
+}
+
+function buildScatter(palette) {
+  const c1 = palette[(props.accent || 0) % palette.length]
+  const points = props.result?.points || []
+  const sized = points.some((p) => p.size != null)
+  const maxSize = sized ? Math.max(...points.map((p) => Number(p.size) || 0), 1) : 1
+  const xLabel = prettyLabel(props.result?.x_label) || 'X'
+  const yLabel = prettyLabel(props.result?.y_label) || 'Y'
+  const fmt = (v, f) => (f ? formatValue(v, f) : formatNumber(v))
+
+  const valueAxis = (name, extra) => ({
+    type: 'value',
+    name,
+    nameTextStyle: { color: cssv('--faint'), fontSize: 9.5, fontFamily: 'IBM Plex Mono' },
+    splitLine: { lineStyle: { color: cssv('--grid-line'), width: 1 } },
+    axisLine: { show: false },
+    axisTick: { show: false },
+    scale: true,
+    axisLabel: {
+      color: cssv('--faint'),
+      fontSize: 9,
+      fontFamily: 'IBM Plex Mono',
+      formatter: (v) => formatNumber(v, { compact: true }),
+    },
+    ...extra,
+  })
+
+  return {
+    grid: { left: 6, right: 18, top: 22, bottom: 6, containLabel: true },
+    tooltip: {
+      ...tooltipChrome('item'),
+      formatter: (p) => {
+        const [x, y, size] = p.value
+        const lines = [
+          `<b>${p.name}</b>`,
+          `${xLabel}: ${fmt(x, props.result?.x_format)}`,
+          `${yLabel}: ${fmt(y, props.result?.y_format)}`,
+        ]
+        if (sized) lines.push(`Size: ${formatNumber(size)}`)
+        return lines.join('<br/>')
+      },
+    },
+    xAxis: valueAxis(xLabel, { nameLocation: 'middle', nameGap: 22 }),
+    yAxis: valueAxis(yLabel, { nameLocation: 'end', nameGap: 10 }),
+    series: [
+      {
+        type: 'scatter',
+        data: points.map((p) => ({
+          name: p.label,
+          value: [Number(p.x) || 0, Number(p.y) || 0, Number(p.size) || 0],
+        })),
+        symbolSize: sized
+          ? (val) => 10 + Math.sqrt((val[2] || 0) / maxSize) * 26
+          : 13,
+        itemStyle: {
+          color: echarts.color.modifyAlpha(c1, 0.6),
+          borderColor: c1,
+          borderWidth: 1.5,
+        },
+        emphasis: { itemStyle: { color: c1, shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.18)' } },
+        cursor: props.selectable ? 'pointer' : 'default',
+      },
+    ],
+  }
+}
+
+function buildRadar(palette) {
+  const c1 = palette[(props.accent || 0) % palette.length]
+  const result = props.result || {}
+  let axes = []
+  let webs = [] // [{name, values[]}]
+
+  if (result.result_type === 'matrix') {
+    // group_by (rows) are the spokes, group_by2 (columns) are the compared entities
+    const rawRows = result.rows || []
+    const rawCols = result.cols || []
+    const rowTotals = rawRows.map((_r, ri) =>
+      rawCols.reduce((sum, _c, ci) => sum + (Number(result.values?.[ri]?.[ci]) || 0), 0)
+    )
+    axes = topPairs(rawRows, rowTotals, MAX_RADAR_AXES).map((p) => p[0])
+    webs = rawCols.slice(0, MAX_RADAR_SERIES).map((colName) => {
+      const ci = rawCols.indexOf(colName)
+      return {
+        name: colName,
+        values: axes.map((r) => Number(result.values?.[rawRows.indexOf(r)]?.[ci]) || 0),
+      }
+    })
+  } else {
+    const pairs = topPairs(result.labels || [], result.values || [], MAX_RADAR_AXES)
+    axes = pairs.map((p) => p[0])
+    webs = [{ name: 'Value', values: pairs.map((p) => p[1]) }]
+  }
+
+  const max = Math.max(1, ...webs.flatMap((w) => w.values))
+  const multi = webs.length > 1
+  return {
+    tooltip: tooltipChrome('item'),
+    legend: multi
+      ? {
+          bottom: 0,
+          icon: 'roundRect',
+          itemWidth: 10,
+          itemHeight: 10,
+          itemGap: 14,
+          textStyle: {
+            color: cssv('--ink-2'),
+            fontSize: 12,
+            fontWeight: 600,
+            fontFamily: 'Plus Jakarta Sans',
+          },
+        }
+      : undefined,
+    radar: {
+      indicator: axes.map((name) => ({ name, max: max * 1.08 })),
+      radius: '64%',
+      center: ['50%', multi ? '46%' : '52%'],
+      splitNumber: 4,
+      axisName: {
+        color: cssv('--ink-2'),
+        fontSize: 10.5,
+        fontWeight: 600,
+        fontFamily: 'Plus Jakarta Sans',
+      },
+      splitLine: { lineStyle: { color: cssv('--grid-line') } },
+      splitArea: { areaStyle: { color: [cssv('--panel'), cssv('--panel-2')], opacity: 0.55 } },
+      axisLine: { lineStyle: { color: cssv('--grid-line') } },
+    },
+    series: [
+      {
+        type: 'radar',
+        data: webs.map((web, i) => {
+          const color = multi ? palette[i % palette.length] : c1
+          return {
+            name: web.name,
+            value: web.values,
+            symbol: 'circle',
+            symbolSize: 5,
+            lineStyle: { width: 2.2, color },
+            itemStyle: { color },
+            areaStyle: { color: echarts.color.modifyAlpha(color, multi ? 0.14 : 0.2) },
+          }
+        }),
+      },
+    ],
+  }
+}
+
+function buildRings(palette) {
+  const target = Number(props.target) || 0
+  const pairs = topPairs(props.result?.labels || [], props.result?.values || [], MAX_RINGS)
+  const labels = pairs.map((p) => p[0])
+  const raw = pairs.map((p) => p[1])
+  const total = raw.reduce((a, v) => a + v, 0) || 1
+  // with a target every ring is progress toward it; without, it's share of total
+  const pct = raw.map((v) => Math.max(0, Math.min((target ? v / target : v / total) * 100, 100)))
+  const pctByLabel = Object.fromEntries(labels.map((l, i) => [l, pct[i]]))
+  const rawByLabel = Object.fromEntries(labels.map((l, i) => [l, raw[i]]))
+
+  const ring = (data, color, z, silent) => ({
+    type: 'bar',
+    coordinateSystem: 'polar',
+    data,
+    roundCap: true,
+    barGap: '-100%',
+    barWidth: 11,
+    itemStyle: { color },
+    silent,
+    z,
+  })
+
+  return {
+    tooltip: {
+      ...tooltipChrome('item'),
+      formatter: (p) =>
+        `<b>${p.seriesName}</b> ${formatNumber(rawByLabel[p.seriesName])} · ${Math.round(
+          pctByLabel[p.seriesName]
+        )}%`,
+    },
+    legend: {
+      orient: 'vertical',
+      right: 4,
+      top: 'middle',
+      icon: 'roundRect',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 11,
+      textStyle: {
+        color: cssv('--ink-2'),
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: 'Plus Jakarta Sans',
+      },
+      formatter: (name) => `${name}  ${Math.round(pctByLabel[name] || 0)}%`,
+    },
+    polar: { radius: ['30%', '86%'], center: ['30%', '50%'] },
+    angleAxis: { max: 100, startAngle: 90, show: false },
+    radiusAxis: { type: 'category', data: labels, show: false },
+    series: [
+      // muted track behind every ring
+      ring(labels.map(() => 100), cssv('--panel-3'), 1, true),
+      ...labels.map((label, i) =>
+        Object.assign(
+          ring(
+            labels.map((_l, j) => (j === i ? pct[i] : null)),
+            palette[i % palette.length],
+            2,
+            false
+          ),
+          { name: label }
+        )
+      ),
     ],
   }
 }

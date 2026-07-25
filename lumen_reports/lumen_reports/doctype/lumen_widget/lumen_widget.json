@@ -31,7 +31,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Widget Type",
-   "options": "Number Card\nBar Chart\nLine Chart\nArea Chart\nPie Chart\nDonut Chart\nTable",
+   "options": "Number Card\nBar Chart\nHorizontal Bar\nLine Chart\nArea Chart\nSparkline\nWaterfall\nPie Chart\nDonut Chart\nRings\nRadar\nFunnel\nGauge\nScatter\nHeatmap\nTable",
    "reqd": 1
   },
   {

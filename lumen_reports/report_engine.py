@@ -48,6 +48,7 @@ TIME_GRAIN_FORMATS = {
 
 MAX_MATRIX_ROWS = 12
 MAX_MATRIX_COLS = 31
+MAX_POINTS = 200
 
 STANDARD_FIELDS = {"name", "owner", "creation", "modified", "modified_by", "docstatus", "idx"}
 
@@ -327,8 +328,8 @@ def _from_with_joins(resolver):
 	return q
 
 
-def _aggregate(resolver, query, raw_filters):
-	aggregate = query.get("aggregate") or {}
+def _value_expression(resolver, aggregate: dict):
+	"""Build the SQL expression + display format for one measure slot."""
 	function = str(aggregate.get("function") or "count").lower()
 	if function not in AGG_FUNCTIONS:
 		frappe.throw(_("Unsupported aggregate function: {0}").format(function[:20]))
@@ -336,16 +337,42 @@ def _aggregate(resolver, query, raw_filters):
 
 	if aggregate.get("expr") is not None:
 		# computed metric (office hours, check-in time, margins, ...)
-		value_expr = agg_fn(_resolve_expr(resolver, aggregate["expr"]))
+		expr = agg_fn(_resolve_expr(resolver, aggregate["expr"]))
 	elif function == "count":
-		value_expr = Count(resolver.base.name)
+		expr = Count(resolver.base.name)
 	else:
-		value_col = resolver.column(_slot_ref(aggregate))
-		value_expr = agg_fn(value_col)
+		expr = agg_fn(resolver.column(_slot_ref(aggregate)))
 
 	result_format = aggregate.get("format")
-	if result_format not in RESULT_FORMATS:
-		result_format = None
+	return expr, (result_format if result_format in RESULT_FORMATS else None)
+
+
+def _measure_label(aggregate: dict) -> str:
+	"""Human-ish axis name for a measure slot (style.x_label overrides it)."""
+	function = str(aggregate.get("function") or "count").lower()
+	if function == "count" or aggregate.get("expr") is not None:
+		return function
+	field = aggregate.get("field")
+	if isinstance(field, dict):
+		field = field.get("field")
+	return f"{function} {field}" if field else function
+
+
+def _aggregate(resolver, query, raw_filters):
+	aggregate = query.get("aggregate") or {}
+	value_expr, result_format = _value_expression(resolver, aggregate)
+
+	# a second measure turns the result into scatter points (x = first, y = second);
+	# a third sizes the bubbles
+	raw_y = query.get("aggregate_y") or {}
+	raw_size = query.get("aggregate_size") or {}
+	y_expr = y_format = size_expr = None
+	if raw_y:
+		y_expr, y_format = _value_expression(resolver, raw_y)
+	elif raw_size:
+		frappe.throw(_("aggregate_size needs aggregate_y (bubble size is a scatter option)"))
+	if raw_size:
+		size_expr, _size_format = _value_expression(resolver, raw_size)
 
 	group_by = query.get("group_by") or {}
 	group_by2 = query.get("group_by2") or {}
@@ -359,6 +386,8 @@ def _aggregate(resolver, query, raw_filters):
 	if group_by2:
 		if not group_by:
 			frappe.throw(_("group_by2 requires group_by"))
+		if y_expr is not None:
+			frappe.throw(_("a scatter query (aggregate_y) cannot also use group_by2"))
 		label2_col, _grain2 = _label_column(resolver, group_by2)
 
 	resolved_filters = _resolve_filters(resolver, raw_filters)
@@ -367,6 +396,8 @@ def _aggregate(resolver, query, raw_filters):
 	q = _apply_filters(resolver, q, resolved_filters)
 
 	if not group_by:
+		if y_expr is not None:
+			frappe.throw(_("a scatter query needs group_by — one point per record or category"))
 		q = q.select(value_expr.as_("value"))
 		rows = q.run(as_dict=True)
 		value = rows[0].get("value") if rows else 0
@@ -374,6 +405,15 @@ def _aggregate(resolver, query, raw_filters):
 		if result_format:
 			out["format"] = result_format
 		return out
+
+	if y_expr is not None:
+		return _points(
+			q,
+			label_col,
+			(value_expr, result_format, _measure_label(aggregate)),
+			(y_expr, y_format, _measure_label(raw_y)),
+			size_expr,
+		)
 
 	if label2_col is not None:
 		return _matrix(q, label_col, label2_col, value_expr, result_format)
@@ -406,6 +446,33 @@ def _label_column(resolver, slot: dict):
 			frappe.throw(_("Unsupported time grain: {0}").format(str(time_grain)[:20]))
 		return DateFormat(base_col, TIME_GRAIN_FORMATS[time_grain]), time_grain
 	return base_col, None
+
+
+def _points(q, label_col, x_slot, y_slot, size_expr):
+	"""Two measures per category -> scatter/bubble points (price vs volume...).
+	x_slot/y_slot are (expression, format, axis label) triples."""
+	x_expr, x_format, x_label = x_slot
+	y_expr, y_format, y_label = y_slot
+
+	q = q.select(label_col.as_("label"), x_expr.as_("x"), y_expr.as_("y"))
+	if size_expr is not None:
+		q = q.select(size_expr.as_("size"))
+	# keep the strongest points when a category explodes past the cap
+	q = q.groupby(label_col).orderby(y_expr, order=Order.desc).limit(MAX_POINTS)
+
+	points = []
+	for entry in q.run(as_dict=True):
+		point = {"label": entry.get("label"), "x": entry.get("x") or 0, "y": entry.get("y") or 0}
+		if size_expr is not None:
+			point["size"] = entry.get("size") or 0
+		points.append(point)
+
+	out = {"result_type": "points", "points": points, "x_label": x_label, "y_label": y_label}
+	if x_format:
+		out["x_format"] = x_format
+	if y_format:
+		out["y_format"] = y_format
+	return out
 
 
 def _matrix(q, row_col, col_col, value_expr, result_format):

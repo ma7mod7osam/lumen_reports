@@ -101,7 +101,15 @@ def execute(query: dict, extra_filters: list | None = None) -> dict:
 
 	needs_expr = (query.get("aggregate") or {}).get("expr") is not None
 	needs_matrix = bool(query.get("group_by2"))
-	if meta.istable or query.get("parent_doctype") or needs_expr or needs_matrix or _uses_related_fields(query):
+	needs_points = bool(query.get("aggregate_y") or query.get("aggregate_size"))
+	if (
+		meta.istable
+		or query.get("parent_doctype")
+		or needs_expr
+		or needs_matrix
+		or needs_points
+		or _uses_related_fields(query)
+	):
 		from lumen_reports import report_engine
 
 		return report_engine.execute(query, extra_filters)

@@ -43,10 +43,11 @@
             <button
               v-for="t in WIDGET_TYPES"
               :key="t.value"
-              class="chip"
+              class="chip chip-icon"
               :class="{ on: form.widget_type === t.value }"
               @click="form.widget_type = t.value"
             >
+              <ChartIcon :type="t.value" :size="12" />
               {{ t.label }}
             </button>
           </div>
@@ -55,7 +56,7 @@
         <template v-if="form.widget_type !== 'Table'">
           <div class="grid grid-cols-2 gap-3">
             <div class="lfield">
-              <label>Measure</label>
+              <label>{{ isScatter ? 'X measure (horizontal)' : 'Measure' }}</label>
               <select v-model="form.aggregate_function">
                 <option value="count">Count</option>
                 <option value="sum">Sum</option>
@@ -75,10 +76,55 @@
             </div>
           </div>
 
+          <!-- a scatter plots two measures against each other, sized by a third -->
+          <template v-if="isScatter">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="lfield">
+                <label>Y measure (vertical)</label>
+                <select v-model="form.y_function">
+                  <option value="count">Count</option>
+                  <option value="sum">Sum</option>
+                  <option value="avg">Average</option>
+                  <option value="min">Min</option>
+                  <option value="max">Max</option>
+                </select>
+              </div>
+              <div v-if="form.y_function !== 'count'" class="lfield">
+                <label>Of field</label>
+                <select v-model="form.y_field">
+                  <option value="" disabled>Select…</option>
+                  <option v-for="f in numericFields" :key="f.fieldname" :value="f.fieldname">
+                    {{ f.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="lfield">
+                <label>Bubble size</label>
+                <select v-model="form.size_function">
+                  <option value="">Same size for all</option>
+                  <option value="count">Count</option>
+                  <option value="sum">Sum</option>
+                  <option value="avg">Average</option>
+                </select>
+              </div>
+              <div v-if="form.size_function && form.size_function !== 'count'" class="lfield">
+                <label>Of field</label>
+                <select v-model="form.size_field">
+                  <option value="" disabled>Select…</option>
+                  <option v-for="f in numericFields" :key="f.fieldname" :value="f.fieldname">
+                    {{ f.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+          </template>
+
           <template v-if="needsGroup">
             <div class="grid grid-cols-2 gap-3">
               <div class="lfield">
-                <label>{{ form.widget_type === 'Heatmap' ? 'Rows' : 'Break down by' }}</label>
+                <label>{{ groupLabel }}</label>
                 <select v-model="form.group_key">
                   <option value="" disabled>Select field…</option>
                   <optgroup label="Fields">
@@ -101,11 +147,12 @@
                 </select>
               </div>
             </div>
-            <div v-if="form.widget_type === 'Heatmap'" class="grid grid-cols-2 gap-3">
+            <div v-if="usesGroup2" class="grid grid-cols-2 gap-3">
               <div class="lfield">
-                <label>Columns (split by)</label>
+                <label>{{ isRadar ? 'One web per (optional)' : 'Columns (split by)' }}</label>
                 <select v-model="form.group2_key">
-                  <option value="" disabled>Select field…</option>
+                  <option v-if="isRadar" value="">Just one web</option>
+                  <option v-else value="" disabled>Select field…</option>
                   <optgroup label="Fields">
                     <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
                   </optgroup>
@@ -126,8 +173,10 @@
             </div>
           </template>
 
-          <div v-if="form.widget_type === 'Gauge'" class="lfield" style="max-width: 220px">
-            <label>Target (gauge measures against this)</label>
+          <div v-if="usesTarget" class="lfield" style="max-width: 260px">
+            <label>{{
+              isRings ? 'Target per ring (blank = share of total)' : 'Target (gauge measures against this)'
+            }}</label>
             <input type="number" v-model.number="form.target" placeholder="e.g. 1000000" />
           </div>
 
@@ -146,7 +195,7 @@
             </div>
           </div>
 
-          <div v-if="['Bar Chart', 'Horizontal Bar', 'Line Chart', 'Area Chart', 'Gauge', 'Heatmap'].includes(form.widget_type)" class="lfield">
+          <div v-if="ACCENT_TYPES.includes(form.widget_type) || form.widget_type === 'Gauge'" class="lfield">
             <label>Color</label>
             <div class="flex items-center gap-2">
               <button
@@ -254,7 +303,7 @@
               </div>
               <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
                 <TableBody v-if="form.widget_type === 'Table'" :result="preview" />
-                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" :accent="form.accent" :target="form.widget_type === 'Gauge' ? form.target : null" />
+                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" :accent="form.accent" :target="usesTarget ? form.target : null" />
               </div>
             </div>
           </div>
@@ -285,6 +334,7 @@ import { call, createResource } from 'frappe-ui'
 import { chartPalette, themeVersion } from '@/lib/theme'
 import Modal from '@/components/builder/Modal.vue'
 import ChartBody from '@/components/widgets/ChartBody.vue'
+import ChartIcon from '@/components/widgets/ChartIcon.vue'
 import TableBody from '@/components/widgets/TableBody.vue'
 import NumberBody from '@/components/widgets/NumberBody.vue'
 
@@ -298,19 +348,32 @@ const editing = computed(() => !!props.widget)
 const WIDGET_TYPES = [
   { label: 'Number', value: 'Number Card' },
   { label: 'Gauge', value: 'Gauge' },
+  { label: 'Sparkline', value: 'Sparkline' },
   { label: 'Bar', value: 'Bar Chart' },
   { label: 'Ranked bars', value: 'Horizontal Bar' },
   { label: 'Line', value: 'Line Chart' },
   { label: 'Area', value: 'Area Chart' },
+  { label: 'Waterfall', value: 'Waterfall' },
   { label: 'Donut', value: 'Donut Chart' },
   { label: 'Pie', value: 'Pie Chart' },
+  { label: 'Rings', value: 'Rings' },
+  { label: 'Radar', value: 'Radar' },
   { label: 'Funnel', value: 'Funnel' },
+  { label: 'Scatter', value: 'Scatter' },
   { label: 'Heatmap', value: 'Heatmap' },
   { label: 'Table', value: 'Table' },
 ]
 
 // these types aggregate without a breakdown
 const NO_GROUP_TYPES = ['Number Card', 'Gauge', 'Table']
+// what the breakdown means, in the language of each chart
+const GROUP_LABELS = {
+  Heatmap: 'Rows',
+  Radar: 'Axes (spokes)',
+  Rings: 'One ring per',
+  Scatter: 'One point per',
+  Waterfall: 'Steps',
+}
 
 // ---- reconstruct initial state (supports editing a saved widget) ----
 const q = props.widget?.query || {}
@@ -337,6 +400,10 @@ const form = reactive({
   widget_type: props.widget?.widget_type || 'Bar Chart',
   aggregate_function: q.aggregate?.function || 'count',
   aggregate_field: q.aggregate?.field || '',
+  y_function: q.aggregate_y?.function || 'sum',
+  y_field: q.aggregate_y?.field || '',
+  size_function: q.aggregate_size?.function || '',
+  size_field: q.aggregate_size?.field || '',
   group_key: groupKeyFromQuery(q),
   time_grain: q.group_by?.time_grain || 'month',
   group2_key: q.group_by2 ? groupKeyFromQuery({ group_by: q.group_by2 }) : '',
@@ -462,9 +529,19 @@ function keyToRef(key) {
 }
 
 const needsGroup = computed(() => !NO_GROUP_TYPES.includes(form.widget_type))
+const isScatter = computed(() => form.widget_type === 'Scatter')
+const isRadar = computed(() => form.widget_type === 'Radar')
+const isRings = computed(() => form.widget_type === 'Rings')
+// a heatmap needs a second dimension; a radar may optionally carry one
+const usesGroup2 = computed(() => form.widget_type === 'Heatmap' || isRadar.value)
+const usesTarget = computed(() => form.widget_type === 'Gauge' || isRings.value)
+const groupLabel = computed(() => GROUP_LABELS[form.widget_type] || 'Break down by')
 
 const canPreview = computed(() => {
   if (form.widget_type === 'Heatmap' && !selectedGroup2.value) return false
+  if (isScatter.value && form.y_function !== 'count' && !form.y_field) return false
+  if (isScatter.value && form.size_function && form.size_function !== 'count' && !form.size_field)
+    return false
   if (!effectiveBase.value) return false
   if (!effectiveFields.value) return false
   if (needsGroup.value) return !!selectedGroup.value
@@ -494,12 +571,22 @@ function buildQuery() {
   query.aggregate = { function: form.aggregate_function }
   if (form.aggregate_function !== 'count') query.aggregate.field = form.aggregate_field
 
+  // a scatter carries a second (and optionally third) measure per point
+  if (isScatter.value) {
+    query.aggregate_y = { function: form.y_function }
+    if (form.y_function !== 'count') query.aggregate_y.field = form.y_field
+    if (form.size_function) {
+      query.aggregate_size = { function: form.size_function }
+      if (form.size_function !== 'count') query.aggregate_size.field = form.size_field
+    }
+  }
+
   if (needsGroup.value && selectedGroup.value) {
     const ref = selectedGroup.value.ref
     query.group_by = typeof ref === 'string' ? { field: ref } : { field: ref.field, via: ref.via }
     if (groupByIsDate.value) query.group_by.time_grain = form.time_grain
   }
-  if (form.widget_type === 'Heatmap' && selectedGroup2.value) {
+  if (usesGroup2.value && selectedGroup2.value) {
     const ref2 = selectedGroup2.value.ref
     query.group_by2 = typeof ref2 === 'string' ? { field: ref2 } : { field: ref2.field, via: ref2.via }
     if (group2IsDate.value) query.group_by2.time_grain = form.time_grain2
@@ -541,16 +628,26 @@ async function runPreview() {
   }
 }
 
+// charts drawn in a single colour keep the user's accent choice
+const ACCENT_TYPES = [
+  'Bar Chart',
+  'Horizontal Bar',
+  'Line Chart',
+  'Area Chart',
+  'Sparkline',
+  'Waterfall',
+  'Radar',
+  'Scatter',
+  'Heatmap',
+]
+
 function save() {
   let style = {}
   if (form.widget_type === 'Number Card') style = { tint: form.tint }
-  else if (form.widget_type === 'Gauge') {
+  else if (usesTarget.value) {
     style = { accent: form.accent || 0 }
     if (form.target) style.target = form.target
-  } else if (
-    ['Bar Chart', 'Horizontal Bar', 'Line Chart', 'Area Chart', 'Heatmap'].includes(form.widget_type) &&
-    form.accent
-  )
+  } else if (ACCENT_TYPES.includes(form.widget_type) && form.accent)
     style = { accent: form.accent }
   emit('save', {
     widget_id: props.widget?.widget_id,
@@ -599,5 +696,16 @@ function save() {
 .wiz-dot.on {
   border-color: var(--ink);
   box-shadow: 0 0 0 2px var(--panel);
+}
+.chip-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chip-icon svg {
+  opacity: 0.75;
+}
+.chip-icon.on svg {
+  opacity: 1;
 }
 </style>
