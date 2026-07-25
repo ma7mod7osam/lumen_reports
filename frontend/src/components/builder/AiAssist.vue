@@ -29,7 +29,19 @@
 
         <div v-if="loading" class="skel" style="height: 200px"></div>
 
-        <div v-else-if="clarify" class="note">{{ clarify }}</div>
+        <!-- a question with no way to answer it reads as a dead end: offer the
+             AI's own options as one-tap replies -->
+        <div v-else-if="clarify" class="note">
+          <div style="font-weight: 600; color: var(--ink)">{{ clarify }}</div>
+          <div v-if="clarifyOptions.length" class="mt-2 flex flex-wrap gap-2">
+            <button v-for="o in clarifyOptions" :key="o" class="chip chip-q" @click="answerClarify(o)">
+              {{ o }}
+            </button>
+          </div>
+          <p v-else style="font-size: 12.5px; color: var(--muted); margin-top: 6px">
+            Add the detail to your description above and generate again.
+          </p>
+        </div>
 
         <div v-else-if="error" class="panel err" style="padding: 14px">
           <div style="font-weight: 700">Couldn't do that</div>
@@ -126,6 +138,15 @@ const entries = ref([]) // [{widget, result, empty, included}]
 const explanation = ref('')
 const suggestions = ref([])
 const questions = ref([])
+const clarifyOptions = ref([])
+const askedPrompt = ref('') // what we asked, so a clarify reply can extend it
+const answering = ref(false) // this run is a reply — the AI must build, not re-ask
+
+function answerClarify(option) {
+  prompt.value = `${askedPrompt.value} — ${option}`
+  answering.value = true
+  generate()
+}
 
 const includedCount = computed(() => entries.value.filter((e) => e.included).length)
 
@@ -143,6 +164,8 @@ async function generate() {
   loading.value = true
   error.value = null
   clarify.value = null
+  clarifyOptions.value = []
+  askedPrompt.value = prompt.value
   entries.value = []
   try {
     if (props.editWidget) {
@@ -162,9 +185,12 @@ async function generate() {
       const answer = await call('lumen_reports.ai.ask_ai', {
         prompt: prompt.value,
         existing_titles: props.existingTitles,
+        answered: answering.value,
       })
+      answering.value = false
       if (answer.clarify) {
         clarify.value = answer.clarify
+        clarifyOptions.value = answer.options || []
         return
       }
       // empty widgets stay visible but excluded by default — the user decides

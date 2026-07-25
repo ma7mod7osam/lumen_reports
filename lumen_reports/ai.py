@@ -211,14 +211,19 @@ Be insightful, not literal:
   when one would do.
 
 Ask before you assume:
-- Every request hides choices you cannot read from the words alone: which time range,
-  which company or branch, which statuses count, whether "sales" means invoiced or paid,
-  which of two similar fields, how deep a breakdown should go.
-- When ONE such choice would change the whole answer, and you cannot pick it confidently,
-  STOP and return {"clarify": "<one short question>", "options": ["<3-4 concrete answers>"]}
-  instead of widgets. Options must be real values/fields from the metadata, and include
-  the sensible default first (e.g. ["This year", "Last 12 months", "All time"]).
-- Otherwise BUILD, but list every assumption you made as a "questions" entry, phrased as a
+- ASK FIRST — return {"clarify": "<one short question>", "options": ["<3-4 answers>"]}
+  and NO widgets — whenever any of these is true:
+  * a word in the request maps to two or more plausible fields (offer the candidates)
+  * the request is broad ("how are we doing", "show me performance", "build a dashboard")
+    and the metadata covers several subject areas it could mean (offer the areas)
+  * it implies a comparison without saying against what ("vs target", "are we better")
+  * it names a period you cannot turn into dates ("recently", "peak season", "lately")
+  Rules for options: use real fields/values from the metadata, put the most likely first,
+  and make the LAST option an escape so the user is never stuck — "Just show me
+  everything", "Use all time", "Cover all of it".
+- Ask ONE question, never a list. If the conversation history shows you already asked a
+  clarifying question, do NOT ask again — take the user's answer and build.
+- When you DO build, list every judgement you made as a "questions" entry, phrased as a
   tappable refinement the user can send straight back: "Limit this to 2026 only?",
   "Should returns be excluded?", "Break it down by branch as well?". These become buttons —
   write them so that clicking one is a complete instruction on its own.
@@ -564,19 +569,22 @@ def _metadata_for(doctypes: list) -> dict:
 
 
 @frappe.whitelist()
-def ask_ai(prompt: str, history=None, existing_titles=None):
+def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
 	"""Natural-language question -> widget spec + executed result.
 
 	`history` is the running conversation ([{role, text}, ...], kept client
 	side) so follow-ups and answers to clarifying questions have context.
 	`existing_titles` are widgets already on the user's board, so a follow-up
-	adds new perspectives instead of recreating what exists."""
+	adds new perspectives instead of recreating what exists.
+	`answered` marks this call as the reply to a clarifying question — the model
+	must build now, because a second question in a row is a dead end."""
 	_require_user()
 	prompt = (prompt or "").strip()
 	if not prompt:
 		frappe.throw(_("Ask a question first"))
 	history = [h for h in (frappe.parse_json(history or "[]") or []) if isinstance(h, dict)][-10:]
 	existing_titles = [t for t in (frappe.parse_json(existing_titles or "[]") or []) if t][:20]
+	answered = frappe.parse_json(answered) if isinstance(answered, str) else bool(answered)
 
 	key, model, source = _resolve_key()
 	if not key:
@@ -588,6 +596,14 @@ def ask_ai(prompt: str, history=None, existing_titles=None):
 		history_block = (
 			"Conversation so far (use it to resolve references like 'that', 'same period', "
 			"and answers to your earlier questions):\n" + lines + "\n\n"
+		)
+	# never ask twice in a row: the user just answered a question
+	if answered:
+		history_block += (
+			"IMPORTANT: the user has ALREADY answered your clarifying question — their "
+			"answer is in the message below. Build the widgets now. Do NOT return "
+			'"clarify" again under any circumstance; if something is still unclear, pick '
+			"the most reasonable reading and note it in \"questions\" instead.\n\n"
 		)
 
 	# step 1: pick relevant doctypes
@@ -604,7 +620,7 @@ def ask_ai(prompt: str, history=None, existing_titles=None):
 		key,
 		model,
 	)
-	if pick.get("clarify"):
+	if pick.get("clarify") and not answered:
 		return {
 			"clarify": pick["clarify"],
 			"options": [o for o in (pick.get("options") or []) if isinstance(o, str)][:4],
@@ -639,10 +655,20 @@ def ask_ai(prompt: str, history=None, existing_titles=None):
 	spec = _generate(build_prompt, key, model)
 	# the model may realize only after seeing the metadata that it must ask
 	if isinstance(spec, dict) and spec.get("clarify"):
-		return {
-			"clarify": spec["clarify"],
-			"options": [o for o in (spec.get("options") or []) if isinstance(o, str)][:4],
-		}
+		if not answered:
+			return {
+				"clarify": spec["clarify"],
+				"options": [o for o in (spec.get("options") or []) if isinstance(o, str)][:4],
+			}
+		# it asked again anyway — force a build rather than leave the user stuck
+		spec = _generate(
+			build_prompt
+			+ "\n\nYou returned another question. That is not allowed here: the user has "
+			"already answered one. Choose the most reasonable interpretation and return "
+			'the widgets JSON now, noting the interpretation in "questions".',
+			key,
+			model,
+		)
 	widgets, errors = _validate_widgets(spec)
 
 	if errors:

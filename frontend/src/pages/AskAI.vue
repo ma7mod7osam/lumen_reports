@@ -450,7 +450,7 @@ async function removeSiteKey() {
   applyStatus(await call('lumen_reports.ai.clear_site_ai_key'))
 }
 
-async function ask(promptText = null) {
+async function ask(promptText = null, isAnswer = false) {
   // guard: template @click passes the event object, not a string
   const text = (typeof promptText === 'string' ? promptText : question.value).trim()
   if (!text || asking.value) return
@@ -465,6 +465,7 @@ async function ask(promptText = null) {
     const response = await call('lumen_reports.ai.ask_ai', {
       prompt: text,
       history: history.value,
+      answered: isAnswer, // a reply must produce a report, not another question
     })
     history.value.push({ role: 'user', text })
     if (response.clarify) {
@@ -486,7 +487,7 @@ async function ask(promptText = null) {
 function answerClarify(reply) {
   const text = (reply || '').trim()
   if (!text) return
-  ask(text) // history already carries the question; the reply becomes the next turn
+  ask(text, true) // history already carries the question; the reply becomes the next turn
 }
 
 // follow-ups APPEND widgets to the current board instead of replacing it
