@@ -43,8 +43,7 @@
             <button v-for="s in suggestions" :key="s" class="chip" @click="useSuggestion(s)">+ {{ s }}</button>
           </div>
           <p v-if="entries.some((e) => e.empty)" style="font-size: 12.5px; color: var(--muted)">
-            Some widgets have <b>no data on this site yet</b> (no returns, nothing today, …). They're
-            excluded by default — tick them to add anyway; they'll fill in when the data exists.
+            Widgets marked <b>No data yet</b> are unticked — tick to add anyway.
           </p>
           <div class="preview-grid">
             <div
@@ -181,21 +180,21 @@ function confirm() {
 </script>
 
 <style scoped>
+/* the modal body is the only scroll container — a nested one traps the cursor */
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 12px;
-  max-height: 420px;
-  overflow-y: auto;
+  gap: 14px 12px;
   padding-bottom: 2px;
 }
 .pv-kpi {
   grid-column: span 4;
   min-height: 116px;
+  align-self: start; /* don't stretch to match a tall chart beside it */
 }
 .pv-chart {
   grid-column: span 6;
-  height: 286px;
+  height: 272px;
 }
 .pv-table {
   grid-column: span 12;

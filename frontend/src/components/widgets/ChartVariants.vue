@@ -1,87 +1,43 @@
 <template>
+  <!-- stays one row: only the forms that suit this data, plus a colour swatch
+       that expands in place (a popover would clip inside scrolling grids) -->
   <div class="vbar" @click.stop>
-    <!-- one row of values: the interchangeable chart family -->
-    <template v-if="isSeriesShape && seriesType">
+    <template v-if="mode === 'color'">
+      <button class="vt" title="Back" @click="mode = 'type'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6" /></svg>
+      </button>
       <button
-        v-for="t in TYPES"
+        v-for="(c, i) in swatches"
+        :key="i"
+        class="vc"
+        :class="{ on: activeSwatch === i }"
+        :style="{ background: c }"
+        :title="swatchTitle(i)"
+        @click="pickSwatch(i)"
+      ></button>
+    </template>
+
+    <template v-else>
+      <button
+        v-for="t in choices"
         :key="t.value"
         class="vt"
-        :class="{ on: widget.widget_type === t.value, off: !rules.allowed.includes(t.value) }"
-        :disabled="!rules.allowed.includes(t.value)"
-        :title="rules.allowed.includes(t.value) ? t.label : rules.reasons[t.value]"
+        :class="{ on: widget.widget_type === t.value }"
+        :title="t.label"
         @click="widget.widget_type = t.value"
       >
         <ChartIcon :type="t.value" />
       </button>
-      <template v-if="hasAccent">
-        <span class="vsep"></span>
-        <button
-          v-for="(c, i) in palette"
-          :key="i"
-          class="vc"
-          :class="{ on: accent === i }"
-          :style="{ background: c }"
-          :title="'Color ' + (i + 1)"
-          @click="setAccent(i)"
-        ></button>
-      </template>
-    </template>
-
-    <!-- two-dimensional results read as a grid or as overlaid webs -->
-    <template v-else-if="isMatrix">
-      <button
-        v-for="t in MATRIX_TYPES"
-        :key="t.value"
-        class="vt"
-        :class="{ on: widget.widget_type === t.value, off: !matrixRules.allowed.includes(t.value) }"
-        :disabled="!matrixRules.allowed.includes(t.value)"
-        :title="matrixRules.allowed.includes(t.value) ? t.label : matrixRules.reasons[t.value]"
-        @click="widget.widget_type = t.value"
-      >
-        <ChartIcon :type="t.value" />
+      <button v-if="swatches.length" class="vsw" title="Change colour" @click="mode = 'color'">
+        <span class="sw" :style="{ background: swatches[activeSwatch] || swatches[0] }"></span>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
       </button>
-      <span class="vsep"></span>
-      <button
-        v-for="(c, i) in palette"
-        :key="i"
-        class="vc"
-        :class="{ on: accent === i }"
-        :style="{ background: c }"
-        :title="'Color ' + (i + 1)"
-        @click="setAccent(i)"
-      ></button>
-    </template>
-
-    <template v-else-if="isPoints || widget.widget_type === 'Gauge'">
-      <span class="mono vlabel">Color</span>
-      <button
-        v-for="(c, i) in palette"
-        :key="i"
-        class="vc"
-        :class="{ on: accent === i }"
-        :style="{ background: c }"
-        :title="'Color ' + (i + 1)"
-        @click="setAccent(i)"
-      ></button>
-    </template>
-
-    <template v-else-if="widget.widget_type === 'Number Card'">
-      <span class="mono vlabel">Tint</span>
-      <button
-        v-for="t in TINTS"
-        :key="t.name"
-        class="vc"
-        :class="{ on: (widget.style?.tint || defaultTint) === t.name }"
-        :style="{ background: t.color }"
-        :title="t.name"
-        @click="setTint(t.name)"
-      ></button>
     </template>
   </div>
 </template>
 
 <script setup>
-import { computed, watchEffect } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import { chartPalette, themeVersion } from '@/lib/theme'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
 
@@ -90,6 +46,9 @@ const props = defineProps({
   result: { type: Object, default: null }, // used to judge shape + category count
   defaultTint: { type: String, default: 'blue' },
 })
+
+const mode = ref('type')
+watch(() => props.widget.widget_type, () => (mode.value = 'type'))
 
 const TYPES = [
   { value: 'Bar Chart', label: 'Bar' },
@@ -106,7 +65,7 @@ const TYPES = [
 ]
 const MATRIX_TYPES = [
   { value: 'Heatmap', label: 'Heatmap' },
-  { value: 'Radar', label: 'Radar — one web per row' },
+  { value: 'Radar', label: 'Radar — one web per column' },
 ]
 const TINTS = [
   { name: 'blue', color: '#1463FF' },
@@ -114,7 +73,8 @@ const TINTS = [
   { name: 'amber', color: '#C9821B' },
   { name: 'violet', color: '#6D4AFF' },
 ]
-// single-colour charts wear the accent; categorical ones use the whole palette
+// charts drawn in one colour let the user pick it; categorical charts use the
+// whole palette in order, so there is nothing to choose
 const ACCENT_TYPES = [
   'Bar Chart',
   'Horizontal Bar',
@@ -123,78 +83,36 @@ const ACCENT_TYPES = [
   'Sparkline',
   'Waterfall',
   'Radar',
+  'Scatter',
+  'Gauge',
+  'Heatmap',
 ]
 
 const SERIES_TYPES = new Set(TYPES.map((t) => t.value))
 const shape = computed(() => props.result?.result_type || 'series')
 const isSeriesShape = computed(() => shape.value === 'series')
 const isMatrix = computed(() => shape.value === 'matrix')
-const isPoints = computed(() => shape.value === 'points')
 const seriesType = computed(() => SERIES_TYPES.has(props.widget.widget_type))
-const hasAccent = computed(() => ACCENT_TYPES.includes(props.widget.widget_type))
-const accent = computed(() => props.widget.style?.accent || 0)
+const isTint = computed(() => props.widget.widget_type === 'Number Card')
 const palette = computed(() => (themeVersion.value, chartPalette()))
 
 // ---- form follows the data: which chart types actually suit this series ----
-const TIME_REASON = 'A time sequence is a trend, not shares or ranks — use a line'
-const DIST_REASON = 'A time distribution, not shares or ranks — bars show it best'
-const CAT_REASON = 'Lines imply an order over time — categories need bars'
-const SPARK_REASON = 'A sparkline traces a trend over time — categories have no sequence'
-
 const rules = computed(() => {
   const grain = props.widget.query?.group_by?.time_grain
   const n = props.result?.labels?.length ?? 0
-
   if (grain === 'hour' || grain === 'weekday') {
     // 7 weekdays make a readable web; 24 hours do not
     const allowed = ['Bar Chart', 'Line Chart', 'Area Chart']
     if (grain === 'weekday') allowed.push('Radar')
-    return {
-      allowed,
-      preferred: 'Bar Chart',
-      reasons: {
-        'Horizontal Bar': DIST_REASON,
-        'Donut Chart': DIST_REASON,
-        'Pie Chart': DIST_REASON,
-        Funnel: DIST_REASON,
-        Rings: DIST_REASON,
-        Radar: 'Too many spokes for a readable web — use bars',
-        Sparkline: 'A distribution has no running trend to trace',
-        Waterfall: 'Nothing accumulates across a distribution — use bars',
-      },
-    }
+    return { allowed, preferred: 'Bar Chart' }
   }
   if (grain) {
     return {
       allowed: ['Line Chart', 'Area Chart', 'Bar Chart', 'Sparkline', 'Waterfall'],
       preferred: 'Line Chart',
-      reasons: {
-        'Horizontal Bar': TIME_REASON,
-        'Donut Chart': TIME_REASON,
-        'Pie Chart': TIME_REASON,
-        Funnel: TIME_REASON,
-        Rings: TIME_REASON,
-        Radar: TIME_REASON,
-      },
     }
   }
-  if (n > 8) {
-    return {
-      allowed: ['Bar Chart', 'Horizontal Bar'],
-      preferred: 'Horizontal Bar',
-      reasons: {
-        'Line Chart': CAT_REASON,
-        'Area Chart': CAT_REASON,
-        Sparkline: SPARK_REASON,
-        Waterfall: `Too many steps (${n}) to follow a running balance`,
-        'Donut Chart': `Too many categories (${n}) for a readable pie — use ranked bars`,
-        'Pie Chart': `Too many categories (${n}) for a readable pie — use ranked bars`,
-        Funnel: `Too many categories (${n}) for a funnel`,
-        Rings: `Too many categories (${n}) for rings — five at most`,
-        Radar: `Too many axes (${n}) for a readable web`,
-      },
-    }
-  }
+  if (n > 8) return { allowed: ['Bar Chart', 'Horizontal Bar'], preferred: 'Horizontal Bar' }
   return {
     allowed: [
       'Bar Chart',
@@ -207,11 +125,6 @@ const rules = computed(() => {
       'Waterfall',
     ],
     preferred: 'Bar Chart',
-    reasons: {
-      'Line Chart': CAT_REASON,
-      'Area Chart': CAT_REASON,
-      Sparkline: SPARK_REASON,
-    },
   }
 })
 
@@ -221,16 +134,46 @@ const matrixRules = computed(() => {
   const webs = props.result?.cols?.length ?? 0
   const allowed = ['Heatmap']
   if (webs <= 4 && spokes >= 3 && spokes <= 10) allowed.push('Radar')
-  return {
-    allowed,
-    reasons: {
-      Radar:
-        webs > 4
-          ? `${webs} overlaid webs would be unreadable — a heatmap scales`
-          : `A radar needs 3-10 spokes, this has ${spokes}`,
-    },
-  }
+  return { allowed }
 })
+
+// only offer real choices — a row of greyed-out icons is noise, and the wizard
+// still lists every type for deliberate building
+const choices = computed(() => {
+  if (isSeriesShape.value && seriesType.value) {
+    const list = TYPES.filter((t) => rules.value.allowed.includes(t.value))
+    return list.length > 1 ? list : []
+  }
+  if (isMatrix.value) {
+    const list = MATRIX_TYPES.filter((t) => matrixRules.value.allowed.includes(t.value))
+    return list.length > 1 ? list : []
+  }
+  return []
+})
+
+const swatches = computed(() => {
+  if (isTint.value) return TINTS.map((t) => t.color)
+  return ACCENT_TYPES.includes(props.widget.widget_type) ? palette.value : []
+})
+const activeSwatch = computed(() =>
+  isTint.value
+    ? Math.max(
+        0,
+        TINTS.findIndex((t) => t.name === (props.widget.style?.tint || props.defaultTint))
+      )
+    : props.widget.style?.accent || 0
+)
+
+function swatchTitle(i) {
+  return isTint.value ? TINTS[i].name : `Colour ${i + 1}`
+}
+function pickSwatch(i) {
+  const style = { ...(props.widget.style || {}) }
+  if (isTint.value) style.tint = TINTS[i].name
+  else style.accent = i
+  props.widget.style = style
+  mode.value = 'type'
+}
 
 // snap to the best-practice type when the current one doesn't suit the data
 // (also silently corrects an AI that picked a donut for a time series)
@@ -246,13 +189,6 @@ watchEffect(() => {
     props.widget.widget_type = 'Heatmap'
   }
 })
-
-function setAccent(i) {
-  props.widget.style = { ...(props.widget.style || {}), accent: i }
-}
-function setTint(name) {
-  props.widget.style = { ...(props.widget.style || {}), tint: name }
-}
 </script>
 
 <style scoped>
@@ -260,8 +196,9 @@ function setTint(name) {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 2px 0;
-  flex-wrap: wrap;
+  padding: 6px 2px 0;
+  min-height: 28px;
+  flex-wrap: wrap; /* safety valve on very narrow cards; normally one row */
 }
 .vt {
   width: 24px;
@@ -274,8 +211,9 @@ function setTint(name) {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
 }
-.vt:hover:not(:disabled) {
+.vt:hover {
   color: var(--ink);
   border-color: var(--blue-300);
 }
@@ -284,33 +222,41 @@ function setTint(name) {
   border-color: var(--blue);
   background: color-mix(in srgb, var(--blue) 8%, var(--panel));
 }
-.vt.off {
-  opacity: 0.32;
-  cursor: not-allowed;
+.vsw {
+  height: 22px;
+  padding: 0 5px 0 4px;
+  margin-left: auto;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: none;
 }
-.vsep {
-  width: 1px;
-  height: 14px;
-  background: var(--border-2);
-  margin: 0 3px;
+.vsw:hover {
+  border-color: var(--blue-300);
+  color: var(--ink);
+}
+.sw {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
 }
 .vc {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
   padding: 0;
+  flex: none;
 }
 .vc.on {
   border-color: var(--ink);
   box-shadow: 0 0 0 2px var(--panel);
-}
-.vlabel {
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--faint);
-  margin-right: 2px;
 }
 </style>

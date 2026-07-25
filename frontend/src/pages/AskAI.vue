@@ -573,6 +573,7 @@ function reset() {
 .ai-kpi {
   grid-column: span 3;
   min-height: 128px;
+  align-self: start; /* don't stretch to match a tall chart beside it */
 }
 .ai-chart {
   grid-column: span 6;
