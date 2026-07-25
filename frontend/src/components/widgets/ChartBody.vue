@@ -16,7 +16,19 @@ const props = defineProps({
   query: { type: Object, default: null },
   // palette slot for single-series charts (user-chosen accent color)
   accent: { type: Number, default: 0 },
+  // gauge only: the target the value is measured against
+  target: { type: [Number, String], default: null },
 })
+
+const WEEKDAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function sortWeekdays(labels) {
+  // engine returns labels alphabetically; put weekdays in calendar order
+  if (labels.length && labels.every((l) => WEEKDAY_ORDER.includes(l))) {
+    return [...labels].sort((a, b) => WEEKDAY_ORDER.indexOf(a) - WEEKDAY_ORDER.indexOf(b))
+  }
+  return labels
+}
 const emit = defineEmits(['select'])
 
 // ---- high-cardinality handling ------------------------------------------
@@ -154,12 +166,115 @@ function buildOption() {
   // single-series charts wear the user-chosen accent (palette slot)
   const c1 = palette[(props.accent || 0) % palette.length]
 
+  if (type === 'Heatmap') return buildHeatmap(palette)
+  if (type === 'Gauge') return buildGauge(palette)
+
   // fold long categorical tails into "Other"; never fold a time axis
   let { labels = [], values = [] } = props.result || {}
-  if (type === 'Pie Chart' || type === 'Donut Chart') {
+  if (type === 'Pie Chart' || type === 'Donut Chart' || type === 'Funnel') {
     ;({ labels, values } = foldSeries({ labels, values }, MAX_SLICES))
-  } else if (type === 'Bar Chart' && !isTimeSeries()) {
+  } else if ((type === 'Bar Chart' || type === 'Horizontal Bar') && !isTimeSeries()) {
     ;({ labels, values } = foldSeries({ labels, values }, MAX_BARS))
+  }
+  // weekday series in calendar order (fold keeps pairs aligned via re-zip)
+  if (labels.length && labels.every((l) => WEEKDAY_ORDER.includes(l))) {
+    const zipped = labels.map((l, i) => [l, values[i]])
+    zipped.sort((a, b) => WEEKDAY_ORDER.indexOf(a[0]) - WEEKDAY_ORDER.indexOf(b[0]))
+    labels = zipped.map((z) => z[0])
+    values = zipped.map((z) => z[1])
+  }
+
+  if (type === 'Horizontal Bar') {
+    const muted = cssv('--baseline')
+    // largest at the top
+    const rev = labels.map((l, i) => [l, values[i]]).reverse()
+    return {
+      grid: { left: 8, right: 44, top: 6, bottom: 4, containLabel: true },
+      tooltip: tooltipChrome('axis'),
+      xAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { color: cssv('--grid-line'), width: 1 } },
+        axisLabel: {
+          color: cssv('--faint'),
+          fontSize: 9,
+          fontFamily: 'IBM Plex Mono',
+          formatter: (v) => formatNumber(v, { compact: true }),
+        },
+      },
+      yAxis: {
+        type: 'category',
+        data: rev.map((z) => z[0]),
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: {
+          color: cssv('--ink-2'),
+          fontSize: 11,
+          fontWeight: 600,
+          fontFamily: 'Plus Jakarta Sans',
+          width: 110,
+          overflow: 'truncate',
+        },
+      },
+      series: [
+        {
+          type: 'bar',
+          data: rev.map(([label, value]) => ({
+            value,
+            itemStyle: {
+              color: isOther(label) ? muted : c1,
+              borderRadius: [0, 5, 5, 0],
+            },
+          })),
+          barMaxWidth: 18,
+          cursor: props.selectable ? 'pointer' : 'default',
+          label: {
+            show: true,
+            position: 'right',
+            color: cssv('--faint'),
+            fontSize: 10,
+            fontFamily: 'IBM Plex Mono',
+            formatter: ({ value }) => formatNumber(value, { compact: true }),
+          },
+        },
+      ],
+    }
+  }
+
+  if (type === 'Funnel') {
+    return {
+      tooltip: { ...tooltipChrome('item') },
+      series: [
+        {
+          type: 'funnel',
+          sort: 'descending',
+          gap: 4,
+          top: 8,
+          bottom: 8,
+          left: '6%',
+          width: '88%',
+          data: labels.map((label, i) => ({
+            name: label,
+            value: values[i],
+            itemStyle: {
+              color: isOther(label)
+                ? cssv('--baseline')
+                : echarts.color.modifyAlpha(palette[i % palette.length], Math.max(1 - i * 0.09, 0.55)),
+              borderWidth: 0,
+            },
+          })),
+          label: {
+            show: true,
+            position: 'inside',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 11.5,
+            fontFamily: 'Plus Jakarta Sans',
+          },
+          emphasis: { label: { fontSize: 12 } },
+          cursor: props.selectable ? 'pointer' : 'default',
+        },
+      ],
+    }
   }
 
   if (type === 'Bar Chart') {
@@ -310,6 +425,109 @@ function buildOption() {
   }
 
   return {}
+}
+
+function buildGauge(palette) {
+  const c1 = palette[(props.accent || 0) % palette.length]
+  const value = Number(props.result?.value) || 0
+  const target = Number(props.target) || 0
+  // with a target: % achieved; without: assume the value already is a percent
+  const pct = target ? (value / target) * 100 : value <= 1 ? value * 100 : value
+  return {
+    tooltip: {
+      ...tooltipChrome('item'),
+      formatter: () =>
+        target
+          ? `${formatNumber(value, { compact: value >= 100000 })} of ${formatNumber(target, { compact: target >= 100000 })}`
+          : `${Math.round(pct)}%`,
+    },
+    series: [
+      {
+        type: 'gauge',
+        startAngle: 195,
+        endAngle: -15,
+        center: ['50%', '68%'],
+        radius: '105%',
+        min: 0,
+        max: 100,
+        progress: { show: true, roundCap: true, width: 14, itemStyle: { color: c1 } },
+        axisLine: { roundCap: true, lineStyle: { width: 14, color: [[1, cssv('--panel-3')]] } },
+        pointer: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        detail: {
+          valueAnimation: true,
+          formatter: (v) => `${Math.round(v)}%`,
+          color: cssv('--ink'),
+          fontSize: 26,
+          fontWeight: 800,
+          fontFamily: 'Plus Jakarta Sans',
+          offsetCenter: [0, '-12%'],
+        },
+        data: [{ value: Math.max(0, Math.min(pct, 100)) }],
+      },
+    ],
+  }
+}
+
+function buildHeatmap(palette) {
+  const c1 = palette[(props.accent || 0) % palette.length]
+  const rows = sortWeekdays(props.result?.rows || [])
+  const cols = sortWeekdays(props.result?.cols || [])
+  const rawRows = props.result?.rows || []
+  const rawCols = props.result?.cols || []
+  const valueAt = (r, c) => {
+    const ri = rawRows.indexOf(r)
+    const ci = rawCols.indexOf(c)
+    return (props.result?.values?.[ri] || [])[ci] || 0
+  }
+  const data = []
+  let maxV = 0
+  rows.forEach((r, y) => {
+    cols.forEach((c, x) => {
+      const v = valueAt(r, c)
+      maxV = Math.max(maxV, v)
+      data.push([x, y, v])
+    })
+  })
+  return {
+    grid: { left: 8, right: 8, top: 8, bottom: 4, containLabel: true },
+    tooltip: {
+      ...tooltipChrome('item'),
+      formatter: (p) => `<b>${rows[p.value[1]]} ${cols[p.value[0]]}</b> ${formatNumber(p.value[2])}`,
+    },
+    xAxis: {
+      type: 'category',
+      data: cols,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: cssv('--faint'), fontSize: 9, fontFamily: 'IBM Plex Mono' },
+    },
+    yAxis: {
+      type: 'category',
+      data: [...rows].reverse(),
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: cssv('--faint'), fontSize: 9, fontFamily: 'IBM Plex Mono' },
+    },
+    visualMap: {
+      show: false,
+      min: 0,
+      max: maxV || 1,
+      inRange: { color: [echarts.color.modifyAlpha(c1, 0.07), c1] },
+    },
+    series: [
+      {
+        type: 'heatmap',
+        // y axis is reversed for top-down reading
+        data: data.map(([x, y, v]) => [x, rows.length - 1 - y, v]),
+        itemStyle: { borderColor: cssv('--panel'), borderWidth: 2, borderRadius: 3 },
+        emphasis: { itemStyle: { shadowBlur: 6, shadowColor: 'rgba(0,0,0,0.2)' } },
+        label: { show: false },
+      },
+    ],
+  }
 }
 
 function render() {

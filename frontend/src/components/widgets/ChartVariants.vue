@@ -12,6 +12,10 @@
       >
         <!-- bar -->
         <svg v-if="t.value === 'Bar Chart'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4.5" height="9" rx="1" /><rect x="10" y="5" width="4.5" height="16" rx="1" /><rect x="17" y="9" width="4.5" height="12" rx="1" /></svg>
+        <!-- ranked / horizontal bars -->
+        <svg v-else-if="t.value === 'Horizontal Bar'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="17" height="4" rx="1" /><rect x="3" y="10" width="12" height="4" rx="1" /><rect x="3" y="16" width="7" height="4" rx="1" /></svg>
+        <!-- funnel -->
+        <svg v-else-if="t.value === 'Funnel'" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16l-3 5H7L4 4Z" /><path d="M8 11h8l-2 4h-4l-2-4Z" opacity="0.75" /><path d="M10.6 17h2.8l-.9 3.5h-1L10.6 17Z" opacity="0.5" /></svg>
         <!-- line -->
         <svg v-else-if="t.value === 'Line Chart'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 5.5-6 4.5 4L21 6" /></svg>
         <!-- area -->
@@ -33,6 +37,19 @@
           @click="setAccent(i)"
         ></button>
       </template>
+    </template>
+
+    <template v-else-if="widget.widget_type === 'Gauge' || widget.widget_type === 'Heatmap'">
+      <span class="mono vlabel">Color</span>
+      <button
+        v-for="(c, i) in palette"
+        :key="i"
+        class="vc"
+        :class="{ on: accent === i }"
+        :style="{ background: c }"
+        :title="'Color ' + (i + 1)"
+        @click="setAccent(i)"
+      ></button>
     </template>
 
     <template v-else-if="widget.widget_type === 'Number Card'">
@@ -62,10 +79,12 @@ const props = defineProps({
 
 const TYPES = [
   { value: 'Bar Chart', label: 'Bar' },
+  { value: 'Horizontal Bar', label: 'Ranked bars' },
   { value: 'Line Chart', label: 'Line' },
   { value: 'Area Chart', label: 'Area' },
   { value: 'Donut Chart', label: 'Donut' },
   { value: 'Pie Chart', label: 'Pie' },
+  { value: 'Funnel', label: 'Funnel' },
 ]
 const TINTS = [
   { name: 'blue', color: '#1463FF' },
@@ -83,15 +102,21 @@ const accent = computed(() => props.widget.style?.accent || 0)
 const palette = computed(() => (themeVersion.value, chartPalette()))
 
 // ---- form follows the data: which chart types actually suit this series ----
+const TIME_REASON = 'A time sequence is a trend, not shares or ranks — use a line'
+const DIST_REASON = 'A time distribution, not shares or ranks — bars show it best'
+const CAT_REASON = 'Lines imply an order over time — categories need bars'
+
 const rules = computed(() => {
   const grain = props.widget.query?.group_by?.time_grain
-  if (grain === 'hour') {
+  if (grain === 'hour' || grain === 'weekday') {
     return {
       allowed: ['Bar Chart', 'Line Chart', 'Area Chart'],
       preferred: 'Bar Chart',
       reasons: {
-        'Donut Chart': 'Hour-of-day is a distribution, not shares of a whole — bars show it best',
-        'Pie Chart': 'Hour-of-day is a distribution, not shares of a whole — bars show it best',
+        'Horizontal Bar': DIST_REASON,
+        'Donut Chart': DIST_REASON,
+        'Pie Chart': DIST_REASON,
+        Funnel: DIST_REASON,
       },
     }
   }
@@ -100,30 +125,33 @@ const rules = computed(() => {
       allowed: ['Line Chart', 'Area Chart', 'Bar Chart'],
       preferred: 'Line Chart',
       reasons: {
-        'Donut Chart': 'A time sequence is a trend, not shares of a whole — use a line',
-        'Pie Chart': 'A time sequence is a trend, not shares of a whole — use a line',
+        'Horizontal Bar': TIME_REASON,
+        'Donut Chart': TIME_REASON,
+        'Pie Chart': TIME_REASON,
+        Funnel: TIME_REASON,
       },
     }
   }
   const n = props.result?.labels?.length ?? 0
   if (n > 8) {
     return {
-      allowed: ['Bar Chart'],
-      preferred: 'Bar Chart',
+      allowed: ['Bar Chart', 'Horizontal Bar'],
+      preferred: 'Horizontal Bar',
       reasons: {
-        'Line Chart': 'Lines imply an order over time — categories need bars',
-        'Area Chart': 'Areas imply an order over time — categories need bars',
-        'Donut Chart': `Too many categories (${n}) for a readable pie — use bars`,
-        'Pie Chart': `Too many categories (${n}) for a readable pie — use bars`,
+        'Line Chart': CAT_REASON,
+        'Area Chart': CAT_REASON,
+        'Donut Chart': `Too many categories (${n}) for a readable pie — use ranked bars`,
+        'Pie Chart': `Too many categories (${n}) for a readable pie — use ranked bars`,
+        Funnel: `Too many categories (${n}) for a funnel`,
       },
     }
   }
   return {
-    allowed: ['Bar Chart', 'Donut Chart', 'Pie Chart'],
+    allowed: ['Bar Chart', 'Horizontal Bar', 'Donut Chart', 'Pie Chart', 'Funnel'],
     preferred: 'Bar Chart',
     reasons: {
-      'Line Chart': 'Lines imply an order over time — categories need bars',
-      'Area Chart': 'Areas imply an order over time — categories need bars',
+      'Line Chart': CAT_REASON,
+      'Area Chart': CAT_REASON,
     },
   }
 })

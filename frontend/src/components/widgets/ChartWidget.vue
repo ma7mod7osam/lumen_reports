@@ -29,6 +29,7 @@
       :result="data"
       :query="widget.query"
       :accent="widget.style?.accent || 0"
+      :target="widget.style?.target ?? null"
       :selectable="selectable"
       @select="onSelect"
     />

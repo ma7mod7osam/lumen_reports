@@ -223,7 +223,7 @@
             </div>
             <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
               <TableBody v-if="entry.widget.widget_type === 'Table'" :result="entry.result" />
-              <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" :accent="entry.widget.style?.accent || 0" />
+              <ChartBody v-else :widget-type="entry.widget.widget_type" :result="entry.result" :query="entry.widget.query" :accent="entry.widget.style?.accent || 0" :target="entry.widget.style?.target ?? null" />
             </div>
           </div>
           <ChartVariants v-if="entry.widget.widget_type !== 'Table'" :widget="entry.widget" :result="entry.result" :default-tint="KPI_TINTS[kpiIndex(i) % 4]" />

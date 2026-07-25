@@ -75,10 +75,10 @@
             </div>
           </div>
 
-          <template v-if="form.widget_type !== 'Number Card'">
+          <template v-if="needsGroup">
             <div class="grid grid-cols-2 gap-3">
               <div class="lfield">
-                <label>Break down by</label>
+                <label>{{ form.widget_type === 'Heatmap' ? 'Rows' : 'Break down by' }}</label>
                 <select v-model="form.group_key">
                   <option value="" disabled>Select field…</option>
                   <optgroup label="Fields">
@@ -93,6 +93,7 @@
                 <label>Time grain</label>
                 <select v-model="form.time_grain">
                   <option value="hour">Hour of day</option>
+                  <option value="weekday">Day of week</option>
                   <option value="day">Day</option>
                   <option value="week">Week</option>
                   <option value="month">Month</option>
@@ -100,7 +101,35 @@
                 </select>
               </div>
             </div>
+            <div v-if="form.widget_type === 'Heatmap'" class="grid grid-cols-2 gap-3">
+              <div class="lfield">
+                <label>Columns (split by)</label>
+                <select v-model="form.group2_key">
+                  <option value="" disabled>Select field…</option>
+                  <optgroup label="Fields">
+                    <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
+                  </optgroup>
+                  <optgroup v-if="groupRelated.length" label="Related (joined)">
+                    <option v-for="o in groupRelated" :key="o.key" :value="o.key">{{ o.label }}</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div v-if="group2IsDate" class="lfield">
+                <label>Time grain</label>
+                <select v-model="form.time_grain2">
+                  <option value="hour">Hour of day</option>
+                  <option value="weekday">Day of week</option>
+                  <option value="day">Day</option>
+                  <option value="month">Month</option>
+                </select>
+              </div>
+            </div>
           </template>
+
+          <div v-if="form.widget_type === 'Gauge'" class="lfield" style="max-width: 220px">
+            <label>Target (gauge measures against this)</label>
+            <input type="number" v-model.number="form.target" placeholder="e.g. 1000000" />
+          </div>
 
           <div v-if="form.widget_type === 'Number Card'" class="lfield">
             <label>Tint</label>
@@ -117,7 +146,7 @@
             </div>
           </div>
 
-          <div v-if="['Bar Chart', 'Line Chart', 'Area Chart'].includes(form.widget_type)" class="lfield">
+          <div v-if="['Bar Chart', 'Horizontal Bar', 'Line Chart', 'Area Chart', 'Gauge', 'Heatmap'].includes(form.widget_type)" class="lfield">
             <label>Color</label>
             <div class="flex items-center gap-2">
               <button
@@ -225,7 +254,7 @@
               </div>
               <div class="min-h-0 flex-1" style="padding: 14px 18px 16px">
                 <TableBody v-if="form.widget_type === 'Table'" :result="preview" />
-                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" :accent="form.accent" />
+                <ChartBody v-else :widget-type="form.widget_type" :result="preview" :query="canPreview ? buildQuery() : null" :accent="form.accent" :target="form.widget_type === 'Gauge' ? form.target : null" />
               </div>
             </div>
           </div>
@@ -268,13 +297,20 @@ const editing = computed(() => !!props.widget)
 
 const WIDGET_TYPES = [
   { label: 'Number', value: 'Number Card' },
+  { label: 'Gauge', value: 'Gauge' },
   { label: 'Bar', value: 'Bar Chart' },
+  { label: 'Ranked bars', value: 'Horizontal Bar' },
   { label: 'Line', value: 'Line Chart' },
   { label: 'Area', value: 'Area Chart' },
   { label: 'Donut', value: 'Donut Chart' },
   { label: 'Pie', value: 'Pie Chart' },
+  { label: 'Funnel', value: 'Funnel' },
+  { label: 'Heatmap', value: 'Heatmap' },
   { label: 'Table', value: 'Table' },
 ]
+
+// these types aggregate without a breakdown
+const NO_GROUP_TYPES = ['Number Card', 'Gauge', 'Table']
 
 // ---- reconstruct initial state (supports editing a saved widget) ----
 const q = props.widget?.query || {}
@@ -303,6 +339,9 @@ const form = reactive({
   aggregate_field: q.aggregate?.field || '',
   group_key: groupKeyFromQuery(q),
   time_grain: q.group_by?.time_grain || 'month',
+  group2_key: q.group_by2 ? groupKeyFromQuery({ group_by: q.group_by2 }) : '',
+  time_grain2: q.group_by2?.time_grain || 'hour',
+  target: props.widget?.style?.target ?? null,
   tint: props.widget?.style?.tint || 'blue',
   accent: props.widget?.style?.accent || 0,
   columns: columnKeysFromQuery(q),
@@ -374,6 +413,8 @@ const selectedGroup = computed(() => allGroupOptions.value.find((o) => o.key ===
 const paletteColors = computed(() => (themeVersion.value, chartPalette()))
 
 const groupByIsDate = computed(() => !!selectedGroup.value?.isDate)
+const selectedGroup2 = computed(() => allGroupOptions.value.find((o) => o.key === form.group2_key))
+const group2IsDate = computed(() => !!selectedGroup2.value?.isDate)
 
 // columns: own fields + related (both selectable as table columns)
 const columnFields = computed(() => {
@@ -420,11 +461,10 @@ function keyToRef(key) {
   return { field, via: { link_field: linkPart, doctype } }
 }
 
-const needsGroup = computed(
-  () => form.widget_type !== 'Number Card' && form.widget_type !== 'Table'
-)
+const needsGroup = computed(() => !NO_GROUP_TYPES.includes(form.widget_type))
 
 const canPreview = computed(() => {
+  if (form.widget_type === 'Heatmap' && !selectedGroup2.value) return false
   if (!effectiveBase.value) return false
   if (!effectiveFields.value) return false
   if (needsGroup.value) return !!selectedGroup.value
@@ -458,6 +498,11 @@ function buildQuery() {
     const ref = selectedGroup.value.ref
     query.group_by = typeof ref === 'string' ? { field: ref } : { field: ref.field, via: ref.via }
     if (groupByIsDate.value) query.group_by.time_grain = form.time_grain
+  }
+  if (form.widget_type === 'Heatmap' && selectedGroup2.value) {
+    const ref2 = selectedGroup2.value.ref
+    query.group_by2 = typeof ref2 === 'string' ? { field: ref2 } : { field: ref2.field, via: ref2.via }
+    if (group2IsDate.value) query.group_by2.time_grain = form.time_grain2
   }
   return query
 }
@@ -499,7 +544,13 @@ async function runPreview() {
 function save() {
   let style = {}
   if (form.widget_type === 'Number Card') style = { tint: form.tint }
-  else if (['Bar Chart', 'Line Chart', 'Area Chart'].includes(form.widget_type) && form.accent)
+  else if (form.widget_type === 'Gauge') {
+    style = { accent: form.accent || 0 }
+    if (form.target) style.target = form.target
+  } else if (
+    ['Bar Chart', 'Horizontal Bar', 'Line Chart', 'Area Chart', 'Heatmap'].includes(form.widget_type) &&
+    form.accent
+  )
     style = { accent: form.accent }
   emit('save', {
     widget_id: props.widget?.widget_id,

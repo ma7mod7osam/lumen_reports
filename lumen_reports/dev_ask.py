@@ -166,3 +166,52 @@ def run(prompt="revenue by brand"):
 			summary["columns"] = [c.get("label") for c in result.get("columns") or []]
 		out["widgets"].append(summary)
 	return out
+
+
+def new_charts():
+	"""Live ask expecting Heatmap / Gauge / Horizontal Bar forms."""
+	import frappe
+
+	frappe.set_user("Administrator")
+	try:
+		ans = ai.ask_ai("when is the shop busiest? show a heatmap of sales invoices by day and hour")
+		out = {"clarify": ans.get("clarify"), "widgets": []}
+		for entry in ans.get("widgets") or []:
+			w = entry["widget"]
+			r = entry.get("result") or {}
+			out["widgets"].append(
+				{
+					"type": w["widget_type"],
+					"title": w["title"],
+					"empty": entry.get("empty"),
+					"kind": r.get("result_type"),
+					"rows": len(r.get("rows") or []) if r.get("result_type") == "matrix" else None,
+					"cols": len(r.get("cols") or []) if r.get("result_type") == "matrix" else None,
+				}
+			)
+		return out
+	except Exception:
+		return {"traceback": traceback.format_exc()[-1500:]}
+
+
+def new_charts_raw():
+	"""Same live ask, dumping the raw first-widget payload."""
+	import frappe
+
+	frappe.set_user("Administrator")
+	try:
+		ans = ai.ask_ai("when is the shop busiest? show me a heatmap of activity by day and hour")
+		entries = ans.get("widgets") or []
+		if not entries:
+			return {"clarify": ans.get("clarify"), "note": "no widgets"}
+		e = entries[0]
+		r = e.get("result") or {}
+		return {
+			"query": e["widget"].get("query"),
+			"result_keys": sorted(r.keys()),
+			"rows": r.get("rows"),
+			"cols": r.get("cols"),
+			"first_values": (r.get("values") or [[]])[0][:6],
+		}
+	except Exception:
+		return {"traceback": traceback.format_exc()[-1500:]}

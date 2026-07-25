@@ -57,6 +57,7 @@ STANDARD_FIELDS = {
 # DATE_FORMAT patterns per time grain (constructed server-side, never from input)
 TIME_GRAIN_FORMATS = {
 	"hour": "%H:00",  # hour-of-day across all days — peak-hours analysis
+	"weekday": "%a",  # Mon..Sun across all weeks
 	"day": "%Y-%m-%d",
 	"week": "%x-W%v",
 	"month": "%Y-%m",
@@ -99,7 +100,8 @@ def execute(query: dict, extra_filters: list | None = None) -> dict:
 	meta = frappe.get_meta(doctype)  # raises DoesNotExistError for unknown doctypes
 
 	needs_expr = (query.get("aggregate") or {}).get("expr") is not None
-	if meta.istable or query.get("parent_doctype") or needs_expr or _uses_related_fields(query):
+	needs_matrix = bool(query.get("group_by2"))
+	if meta.istable or query.get("parent_doctype") or needs_expr or needs_matrix or _uses_related_fields(query):
 		from lumen_reports import report_engine
 
 		return report_engine.execute(query, extra_filters)

@@ -43,10 +43,14 @@ EXCLUDED_MODEL_TOKENS = (
 WIDGET_TYPES = [
 	"Number Card",
 	"Bar Chart",
+	"Horizontal Bar",
 	"Line Chart",
 	"Area Chart",
 	"Donut Chart",
 	"Pie Chart",
+	"Funnel",
+	"Gauge",
+	"Heatmap",
 	"Table",
 ]
 
@@ -72,8 +76,9 @@ Each <widget> is:
     "doctype": "<base doctype>",            // a line-item child table IF parent_doctype is set
     "parent_doctype": "<parent>",            // ONLY for line-item (child table) bases
     "aggregate": {"function": "count|sum|avg|min|max", "field": "<numeric field>"},  // omit field for count; omit aggregate for Table
-    "group_by": {"field": "<field>", "via": {"link_field": "<link>", "doctype": "<target>"}, "time_grain": "hour|day|week|month|year"},
-        // omit for Number Card; via only for related fields; time_grain only for Date/Datetime fields
+    "group_by": {"field": "<field>", "via": {"link_field": "<link>", "doctype": "<target>"}, "time_grain": "hour|weekday|day|week|month|year"},
+        // omit for Number Card/Gauge; via only for related fields; time_grain only for Date/Datetime fields
+    "group_by2": {...same shape...},   // Heatmap ONLY: second dimension (columns)
     "fields": ["field", {"field": "f", "via": {...}}],  // Table only, max 8 columns
     "filters": [["<field>", "=|!=|>|<|>=|<=|like|in|between", value]],  // field may also be {"field","via"}
     "sort": {"field": "<field>", "order": "asc|desc"},  // Table only
@@ -106,9 +111,16 @@ Rules:
   ONLY these ops exist; every field in expr must exist on the base doctype.
   "format" one of clock|hours|minutes|days|percent controls display.
 - Form follows the data — these are HARD rules, not taste:
-  * time series (any time_grain) -> Line or Area; hour-of-day distributions -> Bar.
-    NEVER Pie/Donut for anything time-based.
-  * categorical breakdown -> Bar; Donut/Pie ONLY for share-of-total with <=6 categories.
+  * time series (day/week/month/year grain) -> Line or Area; hour/weekday distributions -> Bar.
+    NEVER Pie/Donut/Funnel for anything time-based.
+  * categorical breakdown -> Bar; ranked top-N (especially long names like customers) ->
+    Horizontal Bar; Donut/Pie ONLY for share-of-total with <=6 categories.
+  * Funnel -> staged processes only (order pipeline, status progression), <=7 stages.
+  * Gauge -> ONE metric measured against a target: aggregate without group_by plus
+    "style": {"target": <number>} on the widget (e.g. monthly sales target).
+  * Heatmap -> exactly two dimensions via group_by (rows) + group_by2 (columns).
+    THE form for busy-times questions: {"group_by": {"field": "creation", "time_grain": "weekday"},
+    "group_by2": {"field": "creation", "time_grain": "hour"}}.
   * single figure -> Number Card; record lists -> Table.
 - Dates: time_grain month unless the question implies daily/weekly/yearly.
 - Time-of-day questions (peak hours, busiest time): group by a Datetime field such as
@@ -672,13 +684,15 @@ def _validate_widgets(spec):
 		if error:
 			errors.append((i, title, error))
 		else:
+			style = w.get("style") if isinstance(w.get("style"), dict) else {}
 			valid.append(
 				{
 					"widget": {
 						"title": title,
 						"widget_type": w.get("widget_type"),
 						"query": w.get("query"),
-						"style": {},
+						# keep only known style keys (gauge target, tint, accent)
+						"style": {k: style[k] for k in ("tint", "accent", "target", "subtitle") if k in style},
 					},
 					"result": result,
 				}
@@ -702,24 +716,28 @@ def _try_widget(w):
 		frappe.clear_last_message()
 		return None, str(e)[:300]
 
-	# shape sanity: charts need a series, cards a number, tables rows
+	# shape sanity: each widget type demands a matching result shape
 	kind = result.get("result_type")
-	if widget_type == "Number Card" and kind != "number":
-		return None, "Number Card query must aggregate without group_by"
+	if widget_type in ("Number Card", "Gauge") and kind != "number":
+		return None, f"{widget_type} query must aggregate without group_by"
 	if widget_type == "Table" and kind != "rows":
 		return None, "Table query must use fields, not aggregate"
-	if widget_type not in ("Number Card", "Table") and kind != "series":
+	if widget_type == "Heatmap" and kind != "matrix":
+		return None, "Heatmap needs BOTH group_by (rows) and group_by2 (columns)"
+	if kind == "matrix" and widget_type != "Heatmap":
+		return None, "two-dimensional group_by2 results can only be shown as a Heatmap"
+	if widget_type not in ("Number Card", "Gauge", "Table", "Heatmap") and kind != "series":
 		return None, "chart query needs aggregate + group_by"
 
 	# form follows the data — coerce chart types that don't suit the series
-	if kind == "series" and widget_type in ("Pie Chart", "Donut Chart"):
+	if kind == "series" and widget_type in ("Pie Chart", "Donut Chart", "Funnel", "Horizontal Bar"):
 		grain = (query.get("group_by") or {}).get("time_grain")
-		if grain == "hour":
-			w["widget_type"] = "Bar Chart"  # hour-of-day is a distribution
+		if grain in ("hour", "weekday"):
+			w["widget_type"] = "Bar Chart"  # a distribution, not shares/rank
 		elif grain:
 			w["widget_type"] = "Line Chart"  # a time sequence is a trend
-		elif len(result.get("labels") or []) > 8:
-			w["widget_type"] = "Bar Chart"  # too many slices to read
+		elif widget_type in ("Pie Chart", "Donut Chart") and len(result.get("labels") or []) > 8:
+			w["widget_type"] = "Horizontal Bar"  # too many slices — ranked bars read best
 	return result, None
 
 
@@ -731,6 +749,8 @@ def _is_empty(result):
 		return not labels or all(label in (None, "") for label in labels)
 	if kind == "rows":
 		return not (result.get("rows") or [])
+	if kind == "matrix":
+		return not (result.get("rows") or []) or not (result.get("cols") or [])
 	return False  # a number (even 0) is signal
 
 
@@ -739,6 +759,8 @@ def _is_empty(result):
 
 DEFAULT_SIZES = {
 	"Number Card": {"w": 3, "h": 2},
+	"Gauge": {"w": 3, "h": 3},
+	"Heatmap": {"w": 12, "h": 5},
 	"Table": {"w": 12, "h": 5},
 	"default": {"w": 6, "h": 5},
 }

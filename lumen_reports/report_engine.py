@@ -39,11 +39,15 @@ FIELDNAME_PATTERN = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 TIME_GRAIN_FORMATS = {
 	"hour": "%H:00",  # hour-of-day across all days — peak-hours analysis
+	"weekday": "%a",  # Mon..Sun across all weeks (client orders them)
 	"day": "%Y-%m-%d",
 	"week": "%x-W%v",
 	"month": "%Y-%m",
 	"year": "%Y",
 }
+
+MAX_MATRIX_ROWS = 12
+MAX_MATRIX_COLS = 31
 
 STANDARD_FIELDS = {"name", "owner", "creation", "modified", "modified_by", "docstatus", "idx"}
 
@@ -344,19 +348,18 @@ def _aggregate(resolver, query, raw_filters):
 		result_format = None
 
 	group_by = query.get("group_by") or {}
+	group_by2 = query.get("group_by2") or {}
 
 	# resolve every ref first so all joins are registered before we build FROM
 	label_col = None
 	time_grain = None
 	if group_by:
-		base_label_col = resolver.column(_slot_ref(group_by))
-		time_grain = group_by.get("time_grain")
-		if time_grain:
-			if time_grain not in TIME_GRAIN_FORMATS:
-				frappe.throw(_("Unsupported time grain: {0}").format(str(time_grain)[:20]))
-			label_col = DateFormat(base_label_col, TIME_GRAIN_FORMATS[time_grain])
-		else:
-			label_col = base_label_col
+		label_col, time_grain = _label_column(resolver, group_by)
+	label2_col = None
+	if group_by2:
+		if not group_by:
+			frappe.throw(_("group_by2 requires group_by"))
+		label2_col, _grain2 = _label_column(resolver, group_by2)
 
 	resolved_filters = _resolve_filters(resolver, raw_filters)
 
@@ -372,6 +375,9 @@ def _aggregate(resolver, query, raw_filters):
 			out["format"] = result_format
 		return out
 
+	if label2_col is not None:
+		return _matrix(q, label_col, label2_col, value_expr, result_format)
+
 	q = q.select(label_col.as_("label"), value_expr.as_("value")).groupby(label_col)
 	# order by the expressions themselves (aliases aren't resolvable in ORDER BY here)
 	if time_grain:
@@ -385,6 +391,51 @@ def _aggregate(resolver, query, raw_filters):
 		"result_type": "series",
 		"labels": [r.get("label") for r in rows],
 		"values": [r.get("value") or 0 for r in rows],
+	}
+	if result_format:
+		out["format"] = result_format
+	return out
+
+
+def _label_column(resolver, slot: dict):
+	"""Build the (possibly time-bucketed) label column for a group_by slot."""
+	base_col = resolver.column(_slot_ref(slot))
+	time_grain = slot.get("time_grain")
+	if time_grain:
+		if time_grain not in TIME_GRAIN_FORMATS:
+			frappe.throw(_("Unsupported time grain: {0}").format(str(time_grain)[:20]))
+		return DateFormat(base_col, TIME_GRAIN_FORMATS[time_grain]), time_grain
+	return base_col, None
+
+
+def _matrix(q, row_col, col_col, value_expr, result_format):
+	"""Two-dimensional grouping -> heatmap-shaped result
+	{rows, cols, values[row][col]} (e.g. weekday x hour peak analysis)."""
+	q = (
+		q.select(row_col.as_("r"), col_col.as_("c"), value_expr.as_("value"))
+		.groupby(row_col, col_col)
+		.limit(2000)
+	)
+	raw = q.run(as_dict=True)
+
+	# rank rows/cols by total so the caps keep the strongest slices...
+	row_totals, col_totals, cells = {}, {}, {}
+	for entry in raw:
+		r, c, v = entry.get("r"), entry.get("c"), entry.get("value") or 0
+		row_totals[r] = row_totals.get(r, 0) + v
+		col_totals[c] = col_totals.get(c, 0) + v
+		cells[(r, c)] = v
+	rows = sorted(row_totals, key=lambda k: -row_totals[k])[:MAX_MATRIX_ROWS]
+	cols = sorted(col_totals, key=lambda k: -col_totals[k])[:MAX_MATRIX_COLS]
+	# ...then display them in natural label order (client fixes weekday order)
+	rows = sorted(rows, key=lambda x: (x is None, str(x)))
+	cols = sorted(cols, key=lambda x: (x is None, str(x)))
+
+	out = {
+		"result_type": "matrix",
+		"rows": rows,
+		"cols": cols,
+		"values": [[cells.get((r, c), 0) for c in cols] for r in rows],
 	}
 	if result_format:
 		out["format"] = result_format
