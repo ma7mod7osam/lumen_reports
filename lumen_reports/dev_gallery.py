@@ -77,6 +77,51 @@ def widgets():
 			"style": {"accent": 2},
 		},
 		{
+			"title": "Monthly sales by territory",
+			"widget_type": "Bar Chart",
+			"query": {
+				"doctype": "Sales Invoice",
+				"filters": SUBMITTED,
+				"aggregate": {"function": "sum", "field": "grand_total"},
+				"group_by": {"field": "posting_date", "time_grain": "month"},
+				"group_by2": {"field": "territory"},
+			},
+		},
+		{
+			"title": "Sales mix by territory",
+			"widget_type": "Stacked Bar",
+			"query": {
+				"doctype": "Sales Invoice",
+				"filters": SUBMITTED,
+				"aggregate": {"function": "sum", "field": "grand_total"},
+				"group_by": {"field": "posting_date", "time_grain": "month"},
+				"group_by2": {"field": "territory"},
+			},
+		},
+		{
+			"title": "Territory attainment",
+			"widget_type": "Progress Bars",
+			"query": {
+				"doctype": "Sales Invoice",
+				"filters": SUBMITTED,
+				"aggregate": {"function": "sum", "field": "grand_total"},
+				"group_by": {"field": "territory"},
+			},
+			"style": {"target": 400000},
+		},
+		{
+			"title": "Sales breakdown",
+			"widget_type": "Tree Report",
+			"query": {
+				**LINE_BASE,
+				"shape": "tree",
+				"aggregate": {"function": "sum", "field": "amount"},
+				"group_by": {"field": "item_group", "via": {"link_field": "item_code", "doctype": "Item"}},
+				"group_by2": {"field": "brand", "via": {"link_field": "item_code", "doctype": "Item"}},
+				"group_by3": {"field": "item_code"},
+			},
+		},
+		{
 			"title": "Busiest times",
 			"widget_type": "Heatmap",
 			"query": {
@@ -124,7 +169,7 @@ def _run():
 				"style_json": frappe.as_json(w.get("style") or {}),
 			},
 		)
-		width = 12 if w["widget_type"] == "Heatmap" else 4
+		width = 12 if w["widget_type"] in ("Heatmap", "Tree Report") else 6 if "Bar" in w["widget_type"] else 4
 		if x + width > 12:
 			x, y = 0, y + 4
 		layout.append({"widget_id": widget_id, "x": x, "y": y, "w": width, "h": 4})
@@ -156,6 +201,9 @@ def check():
 				row["cols"] = len(r.get("cols") or [])
 			elif row["kind"] == "points":
 				row["n"] = len(r.get("points") or [])
+			elif row["kind"] == "tree":
+				row["levels"] = r.get("levels")
+				row["roots"] = len(r.get("nodes") or [])
 		except Exception as e:
 			frappe.clear_last_message()
 			row["error"] = str(e)[:140]

@@ -38,8 +38,13 @@
 
         <template v-else-if="entries.length">
           <p v-if="explanation" style="font-size: 12.5px; color: var(--muted)">{{ explanation }}</p>
+          <!-- the assumptions the AI made — tap one to send it straight back -->
+          <div v-if="questions.length && !editWidget" class="flex flex-wrap items-center gap-2">
+            <span class="mono qlabel">Refine</span>
+            <button v-for="q in questions" :key="q" class="chip chip-q" @click="useSuggestion(q)">{{ q }}</button>
+          </div>
           <div v-if="suggestions.length && !editWidget" class="flex flex-wrap items-center gap-2">
-            <span class="mono" style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint)">Ideas</span>
+            <span class="mono qlabel">Ideas</span>
             <button v-for="s in suggestions" :key="s" class="chip" @click="useSuggestion(s)">+ {{ s }}</button>
           </div>
           <p v-if="entries.some((e) => e.empty)" style="font-size: 12.5px; color: var(--muted)">
@@ -120,6 +125,7 @@ const clarify = ref(null)
 const entries = ref([]) // [{widget, result, empty, included}]
 const explanation = ref('')
 const suggestions = ref([])
+const questions = ref([])
 
 const includedCount = computed(() => entries.value.filter((e) => e.included).length)
 
@@ -165,6 +171,7 @@ async function generate() {
       entries.value = (answer.widgets || []).map((e) => ({ ...e, included: !e.empty }))
       explanation.value = answer.explanation || ''
       suggestions.value = answer.suggestions || []
+      questions.value = answer.questions || []
     }
   } catch (e) {
     error.value = e.messages?.[0] || e.message || String(e)
@@ -250,6 +257,21 @@ function confirm() {
   .pv-table {
     grid-column: span 12;
   }
+}
+.qlabel {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.chip-q {
+  border-color: color-mix(in srgb, var(--blue) 28%, var(--border));
+  background: color-mix(in srgb, var(--blue) 6%, var(--panel));
+  color: var(--ink-2);
+}
+.chip-q:hover {
+  border-color: var(--blue);
+  color: var(--ink);
 }
 .note {
   padding: 13px 15px;

@@ -64,6 +64,10 @@ const TYPES = [
   { value: 'Funnel', label: 'Funnel' },
 ]
 const MATRIX_TYPES = [
+  { value: 'Bar Chart', label: 'Grouped bars' },
+  { value: 'Stacked Bar', label: 'Stacked bars' },
+  { value: 'Line Chart', label: 'One line per series' },
+  { value: 'Area Chart', label: 'Stacked area' },
   { value: 'Heatmap', label: 'Heatmap' },
   { value: 'Radar', label: 'Radar — one web per column' },
 ]
@@ -129,11 +133,13 @@ const rules = computed(() => {
 })
 
 const matrixRules = computed(() => {
-  // rows become the spokes, columns become one web each
-  const spokes = props.result?.rows?.length ?? 0
-  const webs = props.result?.cols?.length ?? 0
+  // rows are the x axis / radar spokes, columns are the series / radar webs
+  const rows = props.result?.rows?.length ?? 0
+  const series = props.result?.cols?.length ?? 0
   const allowed = ['Heatmap']
-  if (webs <= 4 && spokes >= 3 && spokes <= 10) allowed.push('Radar')
+  // a legend stops being readable past a handful of series
+  if (series <= 6) allowed.unshift('Bar Chart', 'Stacked Bar', 'Line Chart', 'Area Chart')
+  if (series <= 4 && rows >= 3 && rows <= 10) allowed.push('Radar')
   return { allowed }
 })
 

@@ -149,9 +149,9 @@
             </div>
             <div v-if="usesGroup2" class="grid grid-cols-2 gap-3">
               <div class="lfield">
-                <label>{{ isRadar ? 'One web per (optional)' : 'Columns (split by)' }}</label>
+                <label>{{ group2Label }}</label>
                 <select v-model="form.group2_key">
-                  <option v-if="isRadar" value="">Just one web</option>
+                  <option v-if="group2Optional" value="">None</option>
                   <option v-else value="" disabled>Select field…</option>
                   <optgroup label="Fields">
                     <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
@@ -170,6 +170,18 @@
                   <option value="month">Month</option>
                 </select>
               </div>
+            </div>
+            <div v-if="isTree && form.group2_key" class="lfield">
+              <label>Then by (level 3, optional)</label>
+              <select v-model="form.group3_key">
+                <option value="">None</option>
+                <optgroup label="Fields">
+                  <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
+                </optgroup>
+                <optgroup v-if="groupRelated.length" label="Related (joined)">
+                  <option v-for="o in groupRelated" :key="o.key" :value="o.key">{{ o.label }}</option>
+                </optgroup>
+              </select>
             </div>
           </template>
 
@@ -350,10 +362,12 @@ const WIDGET_TYPES = [
   { label: 'Gauge', value: 'Gauge' },
   { label: 'Sparkline', value: 'Sparkline' },
   { label: 'Bar', value: 'Bar Chart' },
+  { label: 'Stacked bar', value: 'Stacked Bar' },
   { label: 'Ranked bars', value: 'Horizontal Bar' },
   { label: 'Line', value: 'Line Chart' },
   { label: 'Area', value: 'Area Chart' },
   { label: 'Waterfall', value: 'Waterfall' },
+  { label: 'Progress bars', value: 'Progress Bars' },
   { label: 'Donut', value: 'Donut Chart' },
   { label: 'Pie', value: 'Pie Chart' },
   { label: 'Rings', value: 'Rings' },
@@ -361,18 +375,28 @@ const WIDGET_TYPES = [
   { label: 'Funnel', value: 'Funnel' },
   { label: 'Scatter', value: 'Scatter' },
   { label: 'Heatmap', value: 'Heatmap' },
+  { label: 'Tree report', value: 'Tree Report' },
   { label: 'Table', value: 'Table' },
 ]
 
 // these types aggregate without a breakdown
 const NO_GROUP_TYPES = ['Number Card', 'Gauge', 'Table']
+// charts that can carry a second dimension, and what it means to each
+const GROUP2_TYPES = ['Heatmap', 'Radar', 'Bar Chart', 'Stacked Bar', 'Line Chart', 'Area Chart', 'Tree Report']
+const GROUP2_LABELS = {
+  Heatmap: 'Columns (split by)',
+  Radar: 'One web per (optional)',
+  'Tree Report': 'Then by (level 2)',
+}
 // what the breakdown means, in the language of each chart
 const GROUP_LABELS = {
   Heatmap: 'Rows',
   Radar: 'Axes (spokes)',
   Rings: 'One ring per',
+  'Progress Bars': 'One bar per',
   Scatter: 'One point per',
   Waterfall: 'Steps',
+  'Tree Report': 'Group by (level 1)',
 }
 
 // ---- reconstruct initial state (supports editing a saved widget) ----
@@ -408,6 +432,7 @@ const form = reactive({
   time_grain: q.group_by?.time_grain || 'month',
   group2_key: q.group_by2 ? groupKeyFromQuery({ group_by: q.group_by2 }) : '',
   time_grain2: q.group_by2?.time_grain || 'hour',
+  group3_key: q.group_by3 ? groupKeyFromQuery({ group_by: q.group_by3 }) : '',
   target: props.widget?.style?.target ?? null,
   tint: props.widget?.style?.tint || 'blue',
   accent: props.widget?.style?.accent || 0,
@@ -482,6 +507,7 @@ const paletteColors = computed(() => (themeVersion.value, chartPalette()))
 const groupByIsDate = computed(() => !!selectedGroup.value?.isDate)
 const selectedGroup2 = computed(() => allGroupOptions.value.find((o) => o.key === form.group2_key))
 const group2IsDate = computed(() => !!selectedGroup2.value?.isDate)
+const selectedGroup3 = computed(() => allGroupOptions.value.find((o) => o.key === form.group3_key))
 
 // columns: own fields + related (both selectable as table columns)
 const columnFields = computed(() => {
@@ -532,13 +558,20 @@ const needsGroup = computed(() => !NO_GROUP_TYPES.includes(form.widget_type))
 const isScatter = computed(() => form.widget_type === 'Scatter')
 const isRadar = computed(() => form.widget_type === 'Radar')
 const isRings = computed(() => form.widget_type === 'Rings')
-// a heatmap needs a second dimension; a radar may optionally carry one
-const usesGroup2 = computed(() => form.widget_type === 'Heatmap' || isRadar.value)
-const usesTarget = computed(() => form.widget_type === 'Gauge' || isRings.value)
+const isTree = computed(() => form.widget_type === 'Tree Report')
+// a heatmap/stacked bar needs a second dimension; radar and grouped charts may carry one
+const usesGroup2 = computed(() => GROUP2_TYPES.includes(form.widget_type))
+const usesTarget = computed(() =>
+  ['Gauge', 'Rings', 'Progress Bars'].includes(form.widget_type)
+)
 const groupLabel = computed(() => GROUP_LABELS[form.widget_type] || 'Break down by')
+const group2Label = computed(
+  () => GROUP2_LABELS[form.widget_type] || 'Split by (optional)'
+)
+const group2Optional = computed(() => form.widget_type !== 'Heatmap' && form.widget_type !== 'Stacked Bar')
 
 const canPreview = computed(() => {
-  if (form.widget_type === 'Heatmap' && !selectedGroup2.value) return false
+  if (['Heatmap', 'Stacked Bar'].includes(form.widget_type) && !selectedGroup2.value) return false
   if (isScatter.value && form.y_function !== 'count' && !form.y_field) return false
   if (isScatter.value && form.size_function && form.size_function !== 'count' && !form.size_field)
     return false
@@ -591,6 +624,14 @@ function buildQuery() {
     query.group_by2 = typeof ref2 === 'string' ? { field: ref2 } : { field: ref2.field, via: ref2.via }
     if (group2IsDate.value) query.group_by2.time_grain = form.time_grain2
   }
+  // a tree nests the levels instead of using them as a second axis
+  if (isTree.value) {
+    query.shape = 'tree'
+    if (selectedGroup3.value && query.group_by2) {
+      const ref3 = selectedGroup3.value.ref
+      query.group_by3 = typeof ref3 === 'string' ? { field: ref3 } : { field: ref3.field, via: ref3.via }
+    }
+  }
   return query
 }
 
@@ -636,6 +677,7 @@ const ACCENT_TYPES = [
   'Area Chart',
   'Sparkline',
   'Waterfall',
+  'Progress Bars',
   'Radar',
   'Scatter',
   'Heatmap',

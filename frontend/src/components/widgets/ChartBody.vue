@@ -1,12 +1,29 @@
 <template>
-  <div ref="chartEl" class="h-full w-full" style="min-height: 120px"></div>
+  <!-- not every "chart" is an ECharts canvas: the tree and the progress bars are
+       plain DOM, handled here so every call site keeps passing one component -->
+  <TreeBody v-if="widgetType === 'Tree Report'" :result="result" />
+
+  <div v-else-if="widgetType === 'Progress Bars'" class="pbars">
+    <div v-for="row in progressRows" :key="row.label" class="pbar">
+      <div class="pbar-h">
+        <span class="pbar-l">{{ row.label }}</span>
+        <b class="mono pbar-v">{{ row.pct }}%</b>
+      </div>
+      <div class="prog"><i :style="{ width: Math.min(row.pct, 100) + '%', background: row.color }"></i></div>
+      <div v-if="row.caption" class="pbar-c mono">{{ row.caption }}</div>
+    </div>
+    <div v-if="!progressRows.length" class="pbar-empty">Nothing to show yet</div>
+  </div>
+
+  <div v-else ref="chartEl" class="h-full w-full" style="min-height: 120px"></div>
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { formatNumber, formatValue } from '@/lib/palette'
 import { cssv, chartPalette, themeVersion } from '@/lib/theme'
+import TreeBody from '@/components/widgets/TreeBody.vue'
 
 const props = defineProps({
   widgetType: { type: String, required: true },
@@ -39,6 +56,35 @@ const MAX_BARS = 20 // bar: 19 + Other
 const MAX_RADAR_AXES = 10 // a radar web past this is unreadable
 const MAX_RADAR_SERIES = 4 // overlapping webs muddy each other
 const MAX_RINGS = 5 // concentric rings run out of radius fast
+const MAX_SERIES = 6 // grouped/stacked bars and multi-line legends
+const MULTI_TYPES = ['Bar Chart', 'Stacked Bar', 'Line Chart', 'Area Chart']
+
+// ---- progress bars (plain DOM, not ECharts) ------------------------------
+const progressRows = computed(() => {
+  const labels = props.result?.labels || []
+  const values = props.result?.values || []
+  const target = Number(props.target) || 0
+  const max = Math.max(...values.map((v) => Number(v) || 0), 1)
+  const fmt = (v) =>
+    props.result?.format ? formatValue(v, props.result.format) : formatNumber(v, { compact: v >= 100000 })
+  return labels.slice(0, 8).map((label, i) => {
+    const value = Number(values[i]) || 0
+    // against a target it's progress; without one, share of the largest bar
+    const pct = Math.round((target ? value / target : value / max) * 100)
+    return {
+      label,
+      pct,
+      // running hot reads as a warning even when the bar is "full"
+      color: pct >= 95 ? cssv('--danger') : pct >= 85 ? cssv('--warning') : accentColor(),
+      caption: target ? `${fmt(value)} of ${fmt(target)}` : fmt(value),
+    }
+  })
+})
+
+function accentColor() {
+  const palette = chartPalette()
+  return palette[(props.accent || 0) % palette.length]
+}
 
 function prettyLabel(text) {
   if (!text) return ''
@@ -199,6 +245,10 @@ function buildOption() {
   if (type === 'Scatter') return buildScatter(palette)
   if (type === 'Radar') return buildRadar(palette)
   if (type === 'Rings') return buildRings(palette)
+  // a second grouping turns the cartesian charts into grouped/stacked/multi-line
+  if (props.result?.result_type === 'matrix' && MULTI_TYPES.includes(type)) {
+    return buildMultiSeries(palette, type)
+  }
 
   // fold long categorical tails into "Other"; never fold a time axis
   let { labels = [], values = [] } = props.result || {}
@@ -376,10 +426,16 @@ function buildOption() {
       series: [
         {
           type: 'bar',
-          data: rev.map(([label, value]) => ({
+          // a ranked list reads better with one colour per row (kit style),
+          // but a long tail would exhaust the palette — stay single-colour then
+          data: rev.map(([label, value], i) => ({
             value,
             itemStyle: {
-              color: isOther(label) ? muted : c1,
+              color: isOther(label)
+                ? muted
+                : rev.length <= palette.length
+                  ? palette[(rev.length - 1 - i) % palette.length]
+                  : c1,
               borderRadius: [0, 5, 5, 0],
             },
           })),
@@ -388,8 +444,9 @@ function buildOption() {
           label: {
             show: true,
             position: 'right',
-            color: cssv('--faint'),
-            fontSize: 10,
+            color: cssv('--ink-2'),
+            fontSize: 10.5,
+            fontWeight: 700,
             fontFamily: 'IBM Plex Mono',
             formatter: ({ value }) => formatNumber(value, { compact: true }),
           },
@@ -626,6 +683,90 @@ function buildGauge(palette) {
         data: [{ value: Math.max(0, Math.min(pct, 100)) }],
       },
     ],
+  }
+}
+
+function buildMultiSeries(palette, type) {
+  const result = props.result || {}
+  const rawRows = result.rows || [] // x axis
+  const rawCols = result.cols || [] // one series each
+  const at = (ri, ci) => Number(result.values?.[ri]?.[ci]) || 0
+
+  // keep the biggest series, fold the tail so the legend stays readable
+  const ranked = rawCols
+    .map((_c, ci) => [ci, rawRows.reduce((sum, _r, ri) => sum + at(ri, ci), 0)])
+    .sort((a, b) => b[1] - a[1])
+  const keep = ranked.slice(0, MAX_SERIES).map((r) => r[0])
+  const rest = ranked.slice(MAX_SERIES).map((r) => r[0])
+
+  const xs = sortWeekdays(rawRows)
+  const xIndex = xs.map((label) => rawRows.indexOf(label))
+
+  const defs = keep.map((ci) => ({
+    name: rawCols[ci],
+    values: xIndex.map((ri) => at(ri, ci)),
+  }))
+  if (rest.length) {
+    defs.push({
+      name: otherLabel(rest.length),
+      values: xIndex.map((ri) => rest.reduce((sum, ci) => sum + at(ri, ci), 0)),
+      other: true,
+    })
+  }
+
+  const stacked = type === 'Stacked Bar'
+  const isLine = type === 'Line Chart' || type === 'Area Chart'
+  const isArea = type === 'Area Chart'
+  const option = baseCartesian(xs)
+  option.grid.bottom = 26 // room for the legend
+  option.xAxis.boundaryGap = !isLine
+  if (xs.length > 10) {
+    option.xAxis.axisLabel = { ...option.xAxis.axisLabel, rotate: 42, fontSize: 9, hideOverlap: true }
+    option.grid.bottom = 30
+  }
+
+  return {
+    ...option,
+    legend: {
+      bottom: 0,
+      icon: 'roundRect',
+      itemWidth: 10,
+      itemHeight: 10,
+      itemGap: 14,
+      type: 'scroll',
+      textStyle: {
+        color: cssv('--ink-2'),
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: 'Plus Jakarta Sans',
+      },
+    },
+    series: defs.map((def, i) => {
+      const color = def.other ? cssv('--baseline') : palette[i % palette.length]
+      return {
+        name: def.name,
+        type: isLine ? 'line' : 'bar',
+        data: def.values,
+        ...(stacked ? { stack: 'total' } : {}),
+        ...(isLine
+          ? {
+              smooth: 0.42,
+              symbol: 'circle',
+              symbolSize: 7,
+              showSymbol: false,
+              lineStyle: { width: 2.5, color, cap: 'round', join: 'round' },
+              itemStyle: { color },
+              areaStyle: isArea
+                ? { color: echarts.color.modifyAlpha(color, stacked ? 0.5 : 0.22) }
+                : undefined,
+              ...(isArea && stacked ? { stack: 'total' } : {}),
+            }
+          : {
+              barMaxWidth: stacked ? 30 : 22,
+              itemStyle: { color, borderRadius: stacked ? 2 : [4, 4, 0, 0] },
+            }),
+      }
+    }),
   }
 }
 
@@ -908,3 +1049,53 @@ function render() {
   chart.setOption(buildOption(), { notMerge: true })
 }
 </script>
+
+<style scoped>
+.pbars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  overflow-y: auto;
+}
+.pbar-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+.pbar-l {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pbar-v {
+  font-weight: 700;
+  color: var(--ink);
+  flex: none;
+}
+.prog {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--panel-3);
+  overflow: hidden;
+}
+.prog i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.35s ease;
+}
+.pbar-c {
+  margin-top: 5px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.pbar-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+</style>

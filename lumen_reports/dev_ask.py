@@ -284,3 +284,52 @@ def scatter():
 			frappe.clear_last_message()
 			out[name] = str(e)[:90]
 	return out
+
+
+def tree():
+	"""Direct engine test for the hierarchical tree report."""
+	from lumen_reports import query_engine
+
+	try:
+		r = query_engine.execute(
+			{
+				"doctype": "Sales Invoice Item",
+				"parent_doctype": "Sales Invoice",
+				"filters": [["docstatus", "=", 1]],
+				"shape": "tree",
+				"aggregate": {"function": "sum", "field": "amount"},
+				"group_by": {"field": "item_group", "via": {"link_field": "item_code", "doctype": "Item"}},
+				"group_by2": {"field": "brand", "via": {"link_field": "item_code", "doctype": "Item"}},
+				"group_by3": {"field": "item_code"},
+			}
+		)
+		first = (r.get("nodes") or [{}])[0]
+		return {
+			"kind": r.get("result_type"),
+			"levels": r.get("levels"),
+			"total": r.get("total"),
+			"roots": [n["label"] for n in r.get("nodes") or []],
+			"first_label": first.get("label"),
+			"first_share": round(first.get("share", 0), 3),
+			"first_children": [
+				{"label": c["label"], "value": c["value"], "kids": len(c.get("children") or [])}
+				for c in (first.get("children") or [])
+			],
+		}
+	except Exception:
+		return {"traceback": traceback.format_exc()[-900:]}
+
+
+def asks(prompt="how are my sales doing?"):
+	"""Does the AI clarify / surface its assumptions as refinements?"""
+	try:
+		a = ai.ask_ai(prompt)
+		return {
+			"clarify": a.get("clarify"),
+			"options": a.get("options"),
+			"questions": a.get("questions"),
+			"types": [w["widget"]["widget_type"] for w in (a.get("widgets") or [])],
+			"explanation": (a.get("explanation") or "")[:200],
+		}
+	except Exception:
+		return {"traceback": traceback.format_exc()[-700:]}

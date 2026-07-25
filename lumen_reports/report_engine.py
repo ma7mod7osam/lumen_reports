@@ -46,9 +46,10 @@ TIME_GRAIN_FORMATS = {
 	"year": "%Y",
 }
 
-MAX_MATRIX_ROWS = 12
+MAX_MATRIX_ROWS = 24
 MAX_MATRIX_COLS = 31
 MAX_POINTS = 200
+MAX_TREE_CHILDREN = 20
 
 STANDARD_FIELDS = {"name", "owner", "creation", "modified", "modified_by", "docstatus", "idx"}
 
@@ -389,11 +390,26 @@ def _aggregate(resolver, query, raw_filters):
 		if y_expr is not None:
 			frappe.throw(_("a scatter query (aggregate_y) cannot also use group_by2"))
 		label2_col, _grain2 = _label_column(resolver, group_by2)
+	group_by3 = query.get("group_by3") or {}
+	label3_col = None
+	if group_by3:
+		if not group_by2:
+			frappe.throw(_("group_by3 requires group_by2"))
+		label3_col, _grain3 = _label_column(resolver, group_by3)
 
 	resolved_filters = _resolve_filters(resolver, raw_filters)
 
 	q = _from_with_joins(resolver)
 	q = _apply_filters(resolver, q, resolved_filters)
+
+	# an explicit tree turns the group_by chain into nesting levels instead of
+	# a second axis (category -> brand -> item, with totals rolled up)
+	if str(query.get("shape") or "") == "tree":
+		if not group_by:
+			frappe.throw(_("a tree report needs at least one group_by level"))
+		levels = [c for c in (label_col, label2_col, label3_col) if c is not None]
+		names = [_slot_name(s) for s in (group_by, group_by2, group_by3) if s]
+		return _tree(q, levels, names, value_expr, result_format)
 
 	if not group_by:
 		if y_expr is not None:
@@ -446,6 +462,60 @@ def _label_column(resolver, slot: dict):
 			frappe.throw(_("Unsupported time grain: {0}").format(str(time_grain)[:20]))
 		return DateFormat(base_col, TIME_GRAIN_FORMATS[time_grain]), time_grain
 	return base_col, None
+
+
+def _slot_name(slot: dict) -> str:
+	"""Human level name for a group_by slot ("item_group" -> "Item Group")."""
+	field = slot.get("field")
+	if isinstance(field, dict):
+		field = field.get("field")
+	return str(field or "").replace("_", " ").title()
+
+
+def _tree(q, level_cols, level_names, value_expr, result_format):
+	"""Nested roll-up: one branch per level, totals summed up the tree."""
+	for i, col in enumerate(level_cols):
+		q = q.select(col.as_(f"l{i}"))
+	q = q.select(value_expr.as_("value")).groupby(*level_cols).limit(5000)
+
+	root, total = {}, 0
+	for entry in q.run(as_dict=True):
+		value = entry.get("value") or 0
+		total += value
+		cursor = root
+		for i in range(len(level_cols)):
+			key = entry.get(f"l{i}")
+			key = "—" if key in (None, "") else str(key)
+			bucket = cursor.setdefault(key, {"value": 0, "children": {}})
+			bucket["value"] += value
+			cursor = bucket["children"]
+
+	def build(children, depth):
+		ranked = sorted(children.items(), key=lambda kv: -kv[1]["value"])[:MAX_TREE_CHILDREN]
+		nodes = []
+		for label, data in ranked:
+			node = {
+				"label": label,
+				"level": depth,
+				"level_name": level_names[depth] if depth < len(level_names) else "",
+				"value": data["value"],
+				"share": (data["value"] / total) if total else 0,
+			}
+			kids = build(data["children"], depth + 1)
+			if kids:
+				node["children"] = kids
+			nodes.append(node)
+		return nodes
+
+	out = {
+		"result_type": "tree",
+		"levels": level_names,
+		"total": total,
+		"nodes": build(root, 0),
+	}
+	if result_format:
+		out["format"] = result_format
+	return out
 
 
 def _points(q, label_col, x_slot, y_slot, size_expr):

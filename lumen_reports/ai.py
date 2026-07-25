@@ -43,11 +43,13 @@ EXCLUDED_MODEL_TOKENS = (
 WIDGET_TYPES = [
 	"Number Card",
 	"Bar Chart",
+	"Stacked Bar",
 	"Horizontal Bar",
 	"Line Chart",
 	"Area Chart",
 	"Sparkline",
 	"Waterfall",
+	"Progress Bars",
 	"Donut Chart",
 	"Pie Chart",
 	"Rings",
@@ -56,24 +58,23 @@ WIDGET_TYPES = [
 	"Gauge",
 	"Scatter",
 	"Heatmap",
+	"Tree Report",
 	"Table",
 ]
 
 # chart types that need a plain one-value-per-category series
 SERIES_TYPES = (
-	"Bar Chart",
 	"Horizontal Bar",
-	"Line Chart",
-	"Area Chart",
 	"Sparkline",
 	"Waterfall",
+	"Progress Bars",
 	"Donut Chart",
 	"Pie Chart",
 	"Rings",
 	"Funnel",
 )
-# types whose shape is judged separately (number / matrix / points)
-SPECIAL_TYPES = ("Number Card", "Gauge", "Table", "Heatmap", "Scatter", "Radar")
+# cartesian charts: one series normally, grouped/stacked when group_by2 is set
+MULTI_TYPES = ("Bar Chart", "Stacked Bar", "Line Chart", "Area Chart")
 
 SPEC_GUIDE = """You output a JSON object describing one or more Lumen widgets:
 {
@@ -99,7 +100,10 @@ Each <widget> is:
     "aggregate": {"function": "count|sum|avg|min|max", "field": "<numeric field>"},  // omit field for count; omit aggregate for Table
     "group_by": {"field": "<field>", "via": {"link_field": "<link>", "doctype": "<target>"}, "time_grain": "hour|weekday|day|week|month|year"},
         // omit for Number Card/Gauge; via only for related fields; time_grain only for Date/Datetime fields
-    "group_by2": {...same shape...},   // Heatmap (columns) or Radar (one web per value) ONLY
+    "group_by2": {...same shape...},   // second dimension: stacks/lines, heatmap columns,
+                                       // radar webs, or tree level 2
+    "group_by3": {...same shape...},   // Tree Report level 3 ONLY
+    "shape": "tree",                   // Tree Report ONLY — makes the group_bys nesting levels
     "aggregate_y": {"function": "...", "field": "..."},     // Scatter ONLY: the vertical measure
     "aggregate_size": {"function": "...", "field": "..."},  // Scatter ONLY, optional: bubble size
     "fields": ["field", {"field": "f", "via": {...}}],  // Table only, max 8 columns
@@ -162,6 +166,25 @@ Rules:
      "aggregate": {"function": "avg", "field": "rate"},
      "aggregate_y": {"function": "sum", "field": "qty"},
      "aggregate_size": {"function": "count"}, "filters": [["docstatus", "=", 1]]}
+  * TWO dimensions at once ("sales by month BY channel", "revenue per region per
+    category") -> add group_by2 and pick the form from what is being asked:
+      - "compare", "side by side", "versus each other" -> Bar Chart (grouped bars)
+      - "mix", "composition", "share of total", "makes up" -> Stacked Bar
+      - a trend per entity, or actual-vs-target/this-year-vs-last -> Line Chart
+    Keep it to <=6 series; more becomes a Heatmap.
+  * Progress Bars -> 2-8 named metrics each as a labelled bar, with
+    "style": {"target": <number>} for progress toward a shared target (warehouse
+    capacity, per-branch attainment). Without a target each bar is relative to
+    the largest. Prefer this over Rings when the labels are long.
+  * Tree Report -> a drill-down breakdown where the user names a HIERARCHY
+    ("category then brand then item", "region > salesperson"): set
+    "shape": "tree" plus group_by / group_by2 / group_by3 as the levels.
+    Totals roll up and every row shows its share of the grand total.
+    Example: {"doctype": "Sales Invoice Item", "parent_doctype": "Sales Invoice",
+     "shape": "tree", "aggregate": {"function": "sum", "field": "amount"},
+     "group_by": {"field": "item_group", "via": {"link_field": "item_code", "doctype": "Item"}},
+     "group_by2": {"field": "brand", "via": {"link_field": "item_code", "doctype": "Item"}},
+     "group_by3": {"field": "item_code"}, "filters": [["docstatus", "=", 1]]}
   * single figure -> Number Card; record lists -> Table.
 - Dates: time_grain month unless the question implies daily/weekly/yearly.
 - Time-of-day questions (peak hours, busiest time): group by a Datetime field such as
@@ -187,12 +210,26 @@ Be insightful, not literal:
 - Vary chart types by what tells the story best; never several widgets of the same shape
   when one would do.
 
+Ask before you assume:
+- Every request hides choices you cannot read from the words alone: which time range,
+  which company or branch, which statuses count, whether "sales" means invoiced or paid,
+  which of two similar fields, how deep a breakdown should go.
+- When ONE such choice would change the whole answer, and you cannot pick it confidently,
+  STOP and return {"clarify": "<one short question>", "options": ["<3-4 concrete answers>"]}
+  instead of widgets. Options must be real values/fields from the metadata, and include
+  the sensible default first (e.g. ["This year", "Last 12 months", "All time"]).
+- Otherwise BUILD, but list every assumption you made as a "questions" entry, phrased as a
+  tappable refinement the user can send straight back: "Limit this to 2026 only?",
+  "Should returns be excluded?", "Break it down by branch as well?". These become buttons —
+  write them so that clicking one is a complete instruction on its own.
+- Never ask about something you can see in the metadata, and never ask more than 3.
+
 Also include in the top-level JSON:
 - "suggestions": 2-4 short follow-up ideas the user could pick to extend this dashboard
   (plain sentences like "Add a monthly trend of returns"; each must be answerable from the
   metadata you were given).
-- "questions": up to 2 short clarifying questions, ONLY when a genuinely ambiguous choice
-  exists (time range, company, statuses...). Omit otherwise.
+- "questions": 1-3 refinements, per the "Ask before you assume" rules above. Include at
+  least one whenever you assumed a date range, a status filter, or a field mapping.
 Respond with ONLY the JSON object.""" % {"widget_types": json.dumps(WIDGET_TYPES)}
 
 
@@ -640,7 +677,7 @@ def ask_ai(prompt: str, history=None, existing_titles=None):
 		"explanation": spec.get("explanation") or "",
 		"widgets": widgets,
 		"suggestions": [s for s in (spec.get("suggestions") or []) if isinstance(s, str)][:4],
-		"questions": [q for q in (spec.get("questions") or []) if isinstance(q, str)][:2],
+		"questions": [q for q in (spec.get("questions") or []) if isinstance(q, str)][:3],
 	}
 
 
@@ -769,12 +806,24 @@ def _try_widget(w):
 		return None, "Scatter needs aggregate (x) AND aggregate_y (y) plus a group_by"
 	if widget_type == "Radar" and kind not in ("series", "matrix"):
 		return None, "Radar needs aggregate + group_by (the spokes)"
-	if kind == "matrix" and widget_type not in ("Heatmap", "Radar"):
-		return None, "two-dimensional group_by2 results can only be a Heatmap or a Radar"
+	if widget_type == "Tree Report" and kind != "tree":
+		return None, 'Tree Report needs "shape": "tree" plus 2-3 group_by levels'
+	if widget_type == "Stacked Bar" and kind != "matrix":
+		return None, "Stacked Bar needs group_by (x axis) AND group_by2 (the stacks)"
+	if kind == "tree" and widget_type != "Tree Report":
+		return None, 'a "shape": "tree" query can only be a Tree Report'
+	if kind == "matrix" and widget_type not in ("Heatmap", "Radar") + MULTI_TYPES:
+		return None, "two-dimensional results must be a Heatmap, Radar, or a grouped/stacked chart"
 	if kind == "points" and widget_type != "Scatter":
 		return None, "a query with aggregate_y can only be shown as a Scatter"
 	if widget_type in SERIES_TYPES and kind != "series":
 		return None, "chart query needs aggregate + group_by"
+	if widget_type in MULTI_TYPES and kind not in ("series", "matrix"):
+		return None, "chart query needs aggregate + group_by"
+
+	if kind == "matrix" and widget_type in MULTI_TYPES and len(result.get("cols") or []) > 8:
+		# too many stacks/lines to tell apart — a heatmap scales, a legend doesn't
+		w["widget_type"] = "Heatmap"
 
 	# form follows the data — coerce chart types that don't suit the series
 	if kind == "series":
@@ -812,6 +861,8 @@ def _is_empty(result):
 		return not (result.get("rows") or []) or not (result.get("cols") or [])
 	if kind == "points":
 		return not (result.get("points") or [])
+	if kind == "tree":
+		return not (result.get("nodes") or [])
 	return False  # a number (even 0) is signal
 
 
@@ -824,7 +875,9 @@ DEFAULT_SIZES = {
 	"Gauge": {"w": 3, "h": 3},
 	"Rings": {"w": 4, "h": 4},
 	"Radar": {"w": 4, "h": 5},
+	"Progress Bars": {"w": 4, "h": 4},
 	"Heatmap": {"w": 12, "h": 5},
+	"Tree Report": {"w": 12, "h": 7},
 	"Table": {"w": 12, "h": 5},
 	"default": {"w": 6, "h": 5},
 }

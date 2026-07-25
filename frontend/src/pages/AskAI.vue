@@ -244,26 +244,30 @@
             {{ followingUp ? 'Thinking…' : 'Add' }}
           </button>
         </div>
-        <div v-if="answer.suggestions?.length || answer.questions?.length" class="mt-2 flex flex-wrap items-center gap-2">
-          <span class="mono" style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint)">Ideas</span>
+        <!-- assumptions the AI made: each is a complete instruction, so tapping sends it -->
+        <div v-if="answer.questions?.length" class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="mono chip-label">Refine</span>
           <button
-            v-for="s in answer.suggestions || []"
+            v-for="q in answer.questions"
+            :key="q"
+            class="chip chip-q"
+            :disabled="followingUp"
+            :title="'Send: ' + q"
+            @click="followUp(q)"
+          >
+            {{ q }}
+          </button>
+        </div>
+        <div v-if="answer.suggestions?.length" class="mt-2 flex flex-wrap items-center gap-2">
+          <span class="mono chip-label">Ideas</span>
+          <button
+            v-for="s in answer.suggestions"
             :key="s"
             class="chip"
             :disabled="followingUp"
             @click="followUp(s)"
           >
             + {{ s }}
-          </button>
-          <button
-            v-for="q in answer.questions || []"
-            :key="q"
-            class="chip"
-            style="border-style: dashed"
-            @click="followUpText = ''; followUpText = q + ' — '"
-            :title="'The AI asks: ' + q"
-          >
-            ? {{ q }}
           </button>
         </div>
         <p v-if="followUpError" style="font-size: 12.5px; color: var(--danger); margin-top: 6px">{{ followUpError }}</p>
@@ -574,6 +578,20 @@ function reset() {
   grid-column: span 3;
   min-height: 128px;
   align-self: start; /* don't stretch to match a tall chart beside it */
+}
+.chip-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.chip-q {
+  border-color: color-mix(in srgb, var(--blue) 28%, var(--border));
+  background: color-mix(in srgb, var(--blue) 6%, var(--panel));
+}
+.chip-q:hover {
+  border-color: var(--blue);
+  color: var(--ink);
 }
 .ai-chart {
   grid-column: span 6;

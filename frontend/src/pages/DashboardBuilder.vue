@@ -217,7 +217,9 @@ const DEFAULT_SIZES = {
   Gauge: { w: 3, h: 3 },
   Rings: { w: 4, h: 4 },
   Radar: { w: 4, h: 5 },
+  'Progress Bars': { w: 4, h: 4 },
   Heatmap: { w: 12, h: 5 },
+  'Tree Report': { w: 12, h: 7 },
   default: { w: 6, h: 5 },
 }
 

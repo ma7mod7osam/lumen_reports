@@ -52,6 +52,18 @@ export function resultToCsv(result, title = 'data') {
       ...result.rows.map((r, i) => [r, ...(result.values[i] || [])]),
     ])
   }
+  if (result.result_type === 'tree') {
+    // one row per node, indented by level, with its share of the grand total
+    const rows = [['Level', title, 'Value', 'Share']]
+    const walk = (nodes) => {
+      for (const n of nodes || []) {
+        rows.push([n.level_name || n.level, '  '.repeat(n.level) + n.label, n.value, (n.share * 100).toFixed(1) + '%'])
+        walk(n.children)
+      }
+    }
+    walk(result.nodes)
+    return toCsv(rows)
+  }
   if (result.result_type === 'points') {
     const sized = result.points.some((p) => p.size != null)
     const header = [title, result.x_label || 'x', result.y_label || 'y']
