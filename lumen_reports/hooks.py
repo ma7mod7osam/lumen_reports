@@ -3,7 +3,7 @@ app_title = "Lumen Reports"
 app_publisher = "Mahmoud Hosam"
 app_description = "Beautiful, fast, live-updating dashboards and reports for Frappe — with a no-code builder and plain-English Ask AI"
 app_email = "mhusam.b@gmail.com"
-app_license = "mit"
+app_license = "Proprietary"
 app_logo_url = "/assets/lumen_reports/logo.svg"
 
 # Apps

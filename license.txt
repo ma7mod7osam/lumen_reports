@@ -1,21 +1,136 @@
-MIT License
+Lumen Reports — Software Licence Agreement
 
-Copyright (c) 2026 Mahmoud Hosam
+Copyright (c) 2026 Lumen Solutions. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software is proprietary and confidential. It is licensed, not sold.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+IMPORTANT: This is NOT open-source software. The source code is readable because
+Frappe applications are distributed and executed as source. Readability does not
+grant you any right to copy, redistribute or resell it.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+
+1. DEFINITIONS
+
+   "Software" means the Lumen Reports application, including its source code,
+   compiled assets, documentation and any updates supplied to you.
+
+   "Licensor" means Lumen Solutions.
+
+   "Licensee" / "you" means the individual or organisation that has obtained a
+   valid subscription or purchase for the Software.
+
+   "Authorised Site" means a Frappe site for which you hold a current, paid
+   subscription or purchase entitlement for the Software.
+
+
+2. GRANT OF LICENCE
+
+   Subject to your compliance with this agreement and to payment of all
+   applicable fees, the Licensor grants you a non-exclusive, non-transferable,
+   non-sublicensable, revocable licence to:
+
+   (a) install and run the Software on your Authorised Sites;
+   (b) use the Software for your own internal business purposes; and
+   (c) modify the Software for use on your own Authorised Sites, provided the
+       modified version is never distributed to any third party and remains
+       subject to this agreement.
+
+   You may keep reasonable backup copies for disaster recovery.
+
+
+3. RESTRICTIONS
+
+   You may NOT:
+
+   (a) copy, publish, distribute, sublicense, rent, lease, lend, sell or
+       otherwise make the Software available to any third party, in original or
+       modified form, in whole or in part;
+   (b) install or run the Software on any site that is not an Authorised Site,
+       including for a client, affiliate or subsidiary, without a separate
+       entitlement for that site;
+   (c) use the Software, or any part of it, to build, train or offer a competing
+       product or service;
+   (d) remove, obscure or alter any copyright, licence or attribution notice;
+   (e) circumvent, disable or remove any licensing, entitlement or subscription
+       check contained in the Software; or
+   (f) reverse engineer the Software in order to evade this agreement. (Nothing
+       in this clause restricts rights you have under applicable law that cannot
+       be excluded by contract.)
+
+
+4. OWNERSHIP AND CONFIDENTIALITY
+
+   The Software is licensed, not sold. The Licensor retains all right, title and
+   interest in it, including all intellectual property rights. You acquire no
+   rights other than those expressly granted here.
+
+   The source code is confidential information of the Licensor. You must protect
+   it with at least the care you apply to your own confidential information, and
+   must restrict access to those of your personnel who need it to operate the
+   Software.
+
+   Any modification you make under clause 2(c) remains subject to this agreement.
+
+
+5. THIRD-PARTY COMPONENTS
+
+   The Software incorporates third-party open-source components, each governed by
+   its own licence. Those licences continue to apply to those components and
+   nothing in this agreement restricts your rights under them. This agreement
+   governs the Software as a whole and the Licensor's own original code.
+
+
+6. AI FEATURES
+
+   The Software includes optional AI features that require an API key you obtain
+   from a third-party provider. Your use of that provider is governed by your
+   agreement with them, and any charges they make are yours. The Licensor is not
+   responsible for the availability, output, accuracy or cost of that service.
+
+
+7. TERM AND TERMINATION
+
+   This licence runs for as long as you hold a valid subscription or purchase
+   entitlement.
+
+   It terminates automatically if you materially breach it. On termination you
+   must stop using the Software and remove it from all sites, save that copies
+   retained in routine backups may remain until those backups expire in the
+   ordinary course.
+
+   Clauses 3, 4, 8, 9 and 10 survive termination.
+
+
+8. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. THE LICENSOR DOES NOT
+   WARRANT THAT THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE, OR THAT ANY
+   REPORT IT PRODUCES IS ACCURATE OR SUITABLE FOR ANY DECISION YOU MAKE.
+
+
+9. LIMITATION OF LIABILITY
+
+   TO THE FULLEST EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE FOR
+   ANY INDIRECT, INCIDENTAL, SPECIAL OR CONSEQUENTIAL DAMAGES, NOR FOR LOST
+   PROFITS, LOST REVENUE, LOST DATA OR BUSINESS INTERRUPTION, ARISING OUT OF OR
+   RELATING TO THE SOFTWARE.
+
+   THE LICENSOR'S TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE FEES YOU PAID
+   FOR THE SOFTWARE IN THE TWELVE MONTHS PRECEDING THE CLAIM.
+
+   Nothing here limits liability that cannot lawfully be limited.
+
+
+10. GOVERNING LAW
+
+    This agreement is governed by the laws of [[JURISDICTION]], and the courts of
+    [[JURISDICTION]] have exclusive jurisdiction over any dispute arising from it.
+
+
+11. CONTACT
+
+    Lumen Solutions
+    https://lumen-solutions.co
+    hello@lumen-solutions.co
