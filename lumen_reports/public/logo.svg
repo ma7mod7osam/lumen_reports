@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Lumen Reports">
+  <defs>
+    <linearGradient id="lumen-g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3B82FF" />
+      <stop offset="1" stop-color="#1463FF" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="url(#lumen-g)" />
+  <!-- three rising bars: the product in one mark -->
+  <rect x="16" y="34" width="8" height="15" rx="3" fill="#fff" fill-opacity="0.55" />
+  <rect x="28" y="25" width="8" height="24" rx="3" fill="#fff" fill-opacity="0.8" />
+  <rect x="40" y="16" width="8" height="33" rx="3" fill="#fff" />
+</svg>

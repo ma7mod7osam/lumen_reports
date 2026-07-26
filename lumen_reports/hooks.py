@@ -1,25 +1,25 @@
 app_name = "lumen_reports"
 app_title = "Lumen Reports"
-app_publisher = "Lumen"
-app_description = "Beautiful, fast, live-updating reports and dashboards for Frappe"
+app_publisher = "Mahmoud Hosam"
+app_description = "Beautiful, fast, live-updating dashboards and reports for Frappe — with a no-code builder and plain-English Ask AI"
 app_email = "mhusam.b@gmail.com"
 app_license = "mit"
+app_logo_url = "/assets/lumen_reports/logo.svg"
 
 # Apps
 # ------------------
 
+# Lumen reads whatever doctypes a site already has, so ERPNext is optional.
 # required_apps = []
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "lumen_reports",
-# 		"logo": "/assets/lumen_reports/logo.png",
-# 		"title": "Lumen Reports",
-# 		"route": "/lumen_reports",
-# 		"has_permission": "lumen_reports.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+	{
+		"name": "lumen_reports",
+		"logo": "/assets/lumen_reports/logo.svg",
+		"title": "Lumen Reports",
+		"route": "/lumen",
+	}
+]
 
 # Includes in <head>
 # ------------------
