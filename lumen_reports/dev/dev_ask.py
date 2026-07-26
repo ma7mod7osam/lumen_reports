@@ -333,3 +333,76 @@ def asks(prompt="how are my sales doing?"):
 		}
 	except Exception:
 		return {"traceback": traceback.format_exc()[-700:]}
+
+
+def licensing_check():
+	"""Verify the entitlement logic without a Frappe Cloud subscription."""
+	import frappe
+
+	from lumen_reports import licensing
+
+	out = {}
+	frappe.cache().delete_value(licensing.CACHE_KEY)
+	frappe.cache().delete_value(f"{licensing.CACHE_KEY}:last_good")
+
+	# this bench has no sk_ key -> unlicensed, but must never block
+	out["no_key"] = licensing.get_status(force=True)
+	out["is_licensed_when_unlicensed"] = licensing.is_licensed()
+	out["notice_in_developer_mode"] = licensing.notice()
+
+	# simulate Frappe Cloud answers
+	real_fetch = licensing._fetch
+	try:
+		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme.frappe.cloud"}
+		frappe.conf[licensing.CONFIG_KEY] = "test-secret"
+		out["active"] = licensing.get_status(force=True)
+
+		licensing._fetch = lambda key: {"enabled": 0, "plan": "Pro", "site": "acme.frappe.cloud"}
+		out["disabled"] = licensing.get_status(force=True)
+		out["is_licensed_when_expired"] = licensing.is_licensed()
+
+		# outage after a good check -> fall back to last good, stay working
+		def boom(key):
+			raise RuntimeError("frappe cloud unreachable")
+
+		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme.frappe.cloud"}
+		licensing.get_status(force=True)
+		licensing._fetch = boom
+		out["outage"] = licensing.get_status(force=True)
+		out["is_licensed_during_outage"] = licensing.is_licensed()
+	finally:
+		licensing._fetch = real_fetch
+		frappe.conf.pop(licensing.CONFIG_KEY, None)
+		frappe.cache().delete_value(licensing.CACHE_KEY)
+		frappe.cache().delete_value(f"{licensing.CACHE_KEY}:last_good")
+	return out
+
+
+def licensing_debug():
+	import frappe
+
+	from lumen_reports import licensing
+
+	steps = []
+	frappe.cache().delete_value(licensing.CACHE_KEY)
+	frappe.cache().delete_value(f"{licensing.CACHE_KEY}:last_good")
+	real = licensing._fetch
+	try:
+		frappe.conf[licensing.CONFIG_KEY] = "test-secret"
+		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme"}
+		s1 = licensing.get_status(force=True)
+		steps.append({"after_good_fetch": s1})
+		steps.append({"cache_main": frappe.cache().get_value(licensing.CACHE_KEY)})
+		steps.append({"cache_last_good": frappe.cache().get_value(f"{licensing.CACHE_KEY}:last_good")})
+
+		def boom(key):
+			raise RuntimeError("unreachable")
+
+		licensing._fetch = boom
+		steps.append({"forced_during_outage": licensing.get_status(force=True)})
+		steps.append({"unforced_during_outage": licensing.get_status()})
+		steps.append({"is_licensed": licensing.is_licensed()})
+	finally:
+		licensing._fetch = real
+		frappe.conf.pop(licensing.CONFIG_KEY, None)
+	return steps

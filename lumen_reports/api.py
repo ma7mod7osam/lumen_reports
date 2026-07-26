@@ -7,7 +7,7 @@ import json
 import frappe
 from frappe import _
 
-from lumen_reports import query_engine
+from lumen_reports import licensing, query_engine
 
 CACHE_PREFIX = "lumen_res"
 CACHE_TTL_SECONDS = 300
@@ -465,6 +465,7 @@ def save_dashboard(payload):
 	          widgets: [{widget_id, title, widget_type, query, style, linked_filters}],
 	          layout: [{widget_id, x, y, w, h}], filters: [...]}
 	"""
+	licensing.require_license()
 	data = frappe.parse_json(payload)
 
 	if data.get("name"):

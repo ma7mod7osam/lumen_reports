@@ -38,12 +38,46 @@
         </div>
       </div>
     </header>
+    <div v-if="licenseNotice" class="lic-bar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
+      <span>{{ licenseNotice }}</span>
+    </div>
     <router-view />
   </div>
 </template>
 
 <script setup>
+import { onMounted, ref } from 'vue'
+import { call } from 'frappe-ui'
 import { theme, toggleTheme, applyTheme } from '@/lib/theme'
 
 applyTheme()
+
+// unlicensed use should be visible rather than silent; a failure to check
+// must never keep the app from loading
+const licenseNotice = ref('')
+onMounted(async () => {
+  try {
+    const result = await call('lumen_reports.licensing.get_license_notice')
+    licenseNotice.value = result?.notice || ''
+  } catch (e) {
+    licenseNotice.value = ''
+  }
+})
 </script>
+
+<style scoped>
+.lic-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-bottom: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+</style>
