@@ -11,6 +11,7 @@ from lumen_reports import api
 VIEWER = "lumen.viewer@test.local"
 BUILDER = "lumen.builder@test.local"
 BUILDER2 = "lumen.builder2@test.local"
+RESTRICTED = "lumen.restricted@test.local"
 
 SLUG_DRAFT = "perm-test-draft"
 SLUG_SALES_ONLY = "perm-test-sales-only"
@@ -36,7 +37,7 @@ def _user(email, roles):
 	return email
 
 
-def _dashboard(slug, title, published, roles=None, owner="Administrator"):
+def _dashboard(slug, title, published, roles=None, users=None, owner="Administrator"):
 	if frappe.db.exists("Lumen Dashboard", slug):
 		frappe.delete_doc("Lumen Dashboard", slug, force=True, ignore_permissions=True)
 	doc = frappe.new_doc("Lumen Dashboard")
@@ -45,6 +46,8 @@ def _dashboard(slug, title, published, roles=None, owner="Administrator"):
 	doc.is_published = 1 if published else 0
 	for role in roles or []:
 		doc.append("visible_to_roles", {"role": role})
+	for user in users or []:
+		doc.append("visible_to_users", {"user": user})
 	doc.append(
 		"widgets",
 		{
@@ -85,10 +88,12 @@ def run():
 		_user(VIEWER, ["Lumen Viewer"])
 		_user(BUILDER, ["Lumen Builder", "Sales User", "Accounts User"])
 		_user(BUILDER2, ["Lumen Builder"])
+		_user(RESTRICTED, ["Lumen Restricted Viewer"])
 
 		_dashboard(SLUG_DRAFT, "Draft (admin's)", published=False)
 		_dashboard(SLUG_SALES_ONLY, "Sales eyes only", published=True, roles=["Sales User"])
 		public = _dashboard("perm-test-public", "Public", published=True)
+		_dashboard("perm-test-personal", "For one person", published=True, users=[RESTRICTED])
 		# the deny-path rollbacks below must not be able to undo the fixtures
 		frappe.db.commit()
 
@@ -146,6 +151,15 @@ def run():
 			api.preview_query, {"doctype": "Leave Application", "aggregate": {"function": "count"}}
 		)
 
+		# ---- restricted viewer: EXACTLY the dashboards that name them
+		frappe.set_user(RESTRICTED)
+		seen = _visible_slugs()
+		out["restricted_sees_named_board"] = seen == {"perm-test-personal"}
+		out["restricted_blocked_from_public"] = "perm-test-public" not in seen
+		# a full viewer is NOT affected by someone else's personal share
+		frappe.set_user(VIEWER)
+		out["viewer_blocked_from_personal_share"] = "perm-test-personal" not in _visible_slugs()
+
 		# ---- second builder can't see or edit the first builder's draft
 		frappe.set_user(BUILDER2)
 		out["builder2_blocked_from_builders_draft"] = SLUG_BUILDER_OWN not in _visible_slugs()
@@ -157,7 +171,7 @@ def run():
 		out["traceback"] = traceback.format_exc()[-1200:]
 	finally:
 		frappe.set_user("Administrator")
-		for slug in (SLUG_DRAFT, SLUG_SALES_ONLY, "perm-test-public", SLUG_BUILDER_OWN):
+		for slug in (SLUG_DRAFT, SLUG_SALES_ONLY, "perm-test-public", "perm-test-personal", SLUG_BUILDER_OWN):
 			if frappe.db.exists("Lumen Dashboard", slug):
 				frappe.delete_doc("Lumen Dashboard", slug, force=True, ignore_permissions=True)
 		frappe.db.commit()

@@ -12,6 +12,7 @@
   "auto_refresh",
   "is_published",
   "visible_to_roles",
+  "visible_to_users",
   "section_widgets",
   "widgets",
   "section_config",
@@ -64,6 +65,14 @@
    "fieldtype": "Table MultiSelect",
    "label": "Visible To Roles",
    "options": "Lumen Dashboard Role"
+  },
+  {
+   "depends_on": "is_published",
+   "description": "Share with specific people. For Lumen Restricted Viewers this list IS their access: they only ever see dashboards that name them",
+   "fieldname": "visible_to_users",
+   "fieldtype": "Table MultiSelect",
+   "label": "Visible To Users",
+   "options": "Lumen Dashboard User"
   },
   {
    "fieldname": "section_widgets",
@@ -143,6 +152,10 @@
   {
    "read": 1,
    "role": "Lumen Viewer"
+  },
+  {
+   "read": 1,
+   "role": "Lumen Restricted Viewer"
   }
  ],
  "sort_field": "modified",

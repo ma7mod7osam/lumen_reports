@@ -43,6 +43,24 @@
             <option v-for="r in availableRoles" :key="r" :value="r">{{ r }}</option>
           </select>
         </div>
+        <!-- specific people — the whole board for a Restricted Viewer -->
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span v-for="u in local.visible_to_users" :key="u" class="aud-chip">
+            {{ userLabel(u) }}
+            <button class="aud-x" :title="'Remove ' + u" @click="removeUser(u)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </span>
+          <select class="mini" style="width: 200px" :value="''" @change="(e) => addUser(e)">
+            <option value="" disabled>Add person…</option>
+            <option v-for="u in availableUsers" :key="u.name" :value="u.name">{{ u.full_name || u.name }}</option>
+          </select>
+        </div>
+        <p style="font-size: 12px; color: var(--faint); margin-top: 6px">
+          To give someone <b>only this dashboard</b>: assign them the
+          <b>Lumen Restricted Viewer</b> role and add them here — restricted viewers
+          see nothing except dashboards that name them.
+        </p>
       </div>
 
       <!-- dashboard filters -->
@@ -113,20 +131,28 @@ const emit = defineEmits(['close', 'apply'])
 
 const local = reactive(JSON.parse(JSON.stringify(props.settings)))
 if (!Array.isArray(local.visible_to_roles)) local.visible_to_roles = []
+if (!Array.isArray(local.visible_to_users)) local.visible_to_users = []
 
 const parentFields = computed(() => props.filterFields.filter((f) => f.source !== 'child'))
 const childFields = computed(() => props.filterFields.filter((f) => f.source === 'child'))
 
 // audience picker
 const allRoles = ref([])
+const allUsers = ref([])
 onMounted(async () => {
   try {
     allRoles.value = await call('lumen_reports.api.get_assignable_roles')
+    allUsers.value = await call('lumen_reports.api.get_assignable_users')
   } catch (e) {
-    allRoles.value = [] // viewer opening settings read-only; picker just stays empty
+    // viewer opening settings read-only; pickers just stay empty
   }
 })
 const availableRoles = computed(() => allRoles.value.filter((r) => !local.visible_to_roles.includes(r)))
+const availableUsers = computed(() => allUsers.value.filter((u) => !local.visible_to_users.includes(u.name)))
+
+function userLabel(name) {
+  return allUsers.value.find((u) => u.name === name)?.full_name || name
+}
 
 function addRole(e) {
   const role = e.target.value
@@ -135,6 +161,14 @@ function addRole(e) {
 }
 function removeRole(role) {
   local.visible_to_roles = local.visible_to_roles.filter((r) => r !== role)
+}
+function addUser(e) {
+  const user = e.target.value
+  if (user && !local.visible_to_users.includes(user)) local.visible_to_users.push(user)
+  e.target.value = ''
+}
+function removeUser(user) {
+  local.visible_to_users = local.visible_to_users.filter((u) => u !== user)
 }
 
 function addFilter() {

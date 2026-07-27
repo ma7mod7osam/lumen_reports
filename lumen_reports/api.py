@@ -62,6 +62,7 @@ def get_dashboard(slug: str):
 		"auto_refresh": doc.auto_refresh,
 		"is_published": doc.is_published,
 		"visible_to_roles": [row.role for row in (doc.visible_to_roles or [])],
+		"visible_to_users": [row.user for row in (doc.visible_to_users or [])],
 		"can_edit": doc.has_permission("write"),
 		"layout": frappe.parse_json(doc.layout_json or "[]"),
 		"filters": frappe.parse_json(doc.filters_json or "[]"),
@@ -482,11 +483,15 @@ def save_dashboard(payload):
 	doc.layout_json = json.dumps(data.get("layout") or [])
 	doc.filters_json = json.dumps(data.get("filters") or [])
 
-	# audience: which roles may see this dashboard once published
+	# audience: which roles / which specific people may see this once published
 	doc.set("visible_to_roles", [])
 	for role in data.get("visible_to_roles") or []:
 		if isinstance(role, str) and role.strip():
 			doc.append("visible_to_roles", {"role": role.strip()})
+	doc.set("visible_to_users", [])
+	for user in data.get("visible_to_users") or []:
+		if isinstance(user, str) and user.strip():
+			doc.append("visible_to_users", {"user": user.strip()})
 
 	doc.set("widgets", [])
 	for w in data.get("widgets") or []:
@@ -518,6 +523,25 @@ def get_assignable_roles():
 		for r in frappe.get_all("Role", filters={"disabled": 0}, pluck="name", order_by="name")
 		if r not in skip
 	]
+
+
+@frappe.whitelist()
+def get_assignable_users(txt: str = ""):
+	"""People a builder can share a dashboard with."""
+	if not frappe.has_permission("Lumen Dashboard", "create"):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	filters = {"enabled": 1, "user_type": "System User"}
+	users = frappe.get_all(
+		"User",
+		filters=filters,
+		or_filters=(
+			{"full_name": ("like", f"%{txt}%"), "name": ("like", f"%{txt}%")} if txt else None
+		),
+		fields=["name", "full_name"],
+		order_by="full_name",
+		limit_page_length=30,
+	)
+	return [u for u in users if u.name not in ("Administrator", "Guest")]
 
 
 @frappe.whitelist()

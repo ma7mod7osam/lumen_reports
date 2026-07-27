@@ -3,7 +3,13 @@ import frappe
 no_cache = 1
 
 # roles that open the app at all — the first, coarsest permission layer
-APP_ROLES = {"System Manager", "Lumen Manager", "Lumen Builder", "Lumen Viewer"}
+APP_ROLES = {
+	"System Manager",
+	"Lumen Manager",
+	"Lumen Builder",
+	"Lumen Viewer",
+	"Lumen Restricted Viewer",
+}
 
 
 def get_context(context):

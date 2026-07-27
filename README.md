@@ -107,6 +107,7 @@ Lumen ships three roles (created on install):
 | Role | Can do |
 |---|---|
 | **Lumen Viewer** | Open the app and see published dashboards |
+| **Lumen Restricted Viewer** | See **only** dashboards that name them — how you give someone exactly one dashboard |
 | **Lumen Builder** | Viewer + create dashboards, edit/delete their own |
 | **Lumen Manager** | Full control over all dashboards |
 
@@ -116,7 +117,9 @@ Three independent layers:
    always have access).
 2. **Dashboard visibility** — drafts are private to their owner. Published
    dashboards are visible to everyone with Lumen access, unless the dashboard
-   names an audience ("Who can see it" in settings) — then only those roles see it.
+   names an audience ("Who can see it" in settings) — roles, specific people,
+   or both. Restricted Viewers invert the default: they see nothing except
+   dashboards that name them.
 3. **Data** — every widget query runs through Frappe's permission layer for the
    *viewing* user. A builder can only report on doctypes their roles let them
    read, and two users can open the same dashboard and correctly see different
