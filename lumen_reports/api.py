@@ -61,6 +61,7 @@ def get_dashboard(slug: str):
 		"description": doc.description,
 		"auto_refresh": doc.auto_refresh,
 		"is_published": doc.is_published,
+		"visible_to_roles": [row.role for row in (doc.visible_to_roles or [])],
 		"can_edit": doc.has_permission("write"),
 		"layout": frappe.parse_json(doc.layout_json or "[]"),
 		"filters": frappe.parse_json(doc.filters_json or "[]"),
@@ -481,6 +482,12 @@ def save_dashboard(payload):
 	doc.layout_json = json.dumps(data.get("layout") or [])
 	doc.filters_json = json.dumps(data.get("filters") or [])
 
+	# audience: which roles may see this dashboard once published
+	doc.set("visible_to_roles", [])
+	for role in data.get("visible_to_roles") or []:
+		if isinstance(role, str) and role.strip():
+			doc.append("visible_to_roles", {"role": role.strip()})
+
 	doc.set("widgets", [])
 	for w in data.get("widgets") or []:
 		doc.append(
@@ -497,6 +504,20 @@ def save_dashboard(payload):
 
 	doc.save()  # frappe enforces create/write permissions here
 	return {"name": doc.name, "slug": doc.route_slug}
+
+
+@frappe.whitelist()
+def get_assignable_roles():
+	"""Roles a builder can pick as a dashboard audience. Excludes the system
+	plumbing roles that would be meaningless or dangerous as an audience."""
+	if not frappe.has_permission("Lumen Dashboard", "create"):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	skip = {"Administrator", "Guest", "All", "Desk User"}
+	return [
+		r
+		for r in frappe.get_all("Role", filters={"disabled": 0}, pluck="name", order_by="name")
+		if r not in skip
+	]
 
 
 @frappe.whitelist()

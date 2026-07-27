@@ -11,6 +11,7 @@
   "column_break_1",
   "auto_refresh",
   "is_published",
+  "visible_to_roles",
   "section_widgets",
   "widgets",
   "section_config",
@@ -55,6 +56,14 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Published"
+  },
+  {
+   "depends_on": "is_published",
+   "description": "Leave empty to make a published dashboard visible to everyone with Lumen access; add roles to restrict it to them",
+   "fieldname": "visible_to_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Visible To Roles",
+   "options": "Lumen Dashboard Role"
   },
   {
    "fieldname": "section_widgets",
@@ -108,8 +117,32 @@
    "write": 1
   },
   {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
    "read": 1,
-   "role": "Desk User"
+   "report": 1,
+   "role": "Lumen Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Lumen Builder"
+  },
+  {
+   "delete": 1,
+   "if_owner": 1,
+   "read": 1,
+   "role": "Lumen Builder",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Lumen Viewer"
   }
  ],
  "sort_field": "modified",

@@ -24,6 +24,27 @@
         </label>
       </div>
 
+      <!-- audience: who a published dashboard is for -->
+      <div v-if="local.is_published" class="lfield">
+        <label>Who can see it</label>
+        <p style="font-size: 12.5px; color: var(--muted); margin-bottom: 6px">
+          Empty means everyone with Lumen access. Add roles to restrict it — each viewer
+          still only sees the data their own permissions allow.
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <span v-for="r in local.visible_to_roles" :key="r" class="aud-chip">
+            {{ r }}
+            <button class="aud-x" :title="'Remove ' + r" @click="removeRole(r)">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </span>
+          <select class="mini" style="width: 200px" :value="''" @change="(e) => addRole(e)">
+            <option value="" disabled>Add role…</option>
+            <option v-for="r in availableRoles" :key="r" :value="r">{{ r }}</option>
+          </select>
+        </div>
+      </div>
+
       <!-- dashboard filters -->
       <div class="lfield">
         <label>Dashboard filters</label>
@@ -78,7 +99,8 @@
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { call } from 'frappe-ui'
 import Modal from '@/components/builder/Modal.vue'
 
 const props = defineProps({
@@ -90,9 +112,30 @@ const props = defineProps({
 const emit = defineEmits(['close', 'apply'])
 
 const local = reactive(JSON.parse(JSON.stringify(props.settings)))
+if (!Array.isArray(local.visible_to_roles)) local.visible_to_roles = []
 
 const parentFields = computed(() => props.filterFields.filter((f) => f.source !== 'child'))
 const childFields = computed(() => props.filterFields.filter((f) => f.source === 'child'))
+
+// audience picker
+const allRoles = ref([])
+onMounted(async () => {
+  try {
+    allRoles.value = await call('lumen_reports.api.get_assignable_roles')
+  } catch (e) {
+    allRoles.value = [] // viewer opening settings read-only; picker just stays empty
+  }
+})
+const availableRoles = computed(() => allRoles.value.filter((r) => !local.visible_to_roles.includes(r)))
+
+function addRole(e) {
+  const role = e.target.value
+  if (role && !local.visible_to_roles.includes(role)) local.visible_to_roles.push(role)
+  e.target.value = ''
+}
+function removeRole(role) {
+  local.visible_to_roles = local.visible_to_roles.filter((r) => r !== role)
+}
 
 function addFilter() {
   local.filters.push({ name: '', label: '', fieldtype: '' })
@@ -121,6 +164,34 @@ function apply() {
 </script>
 
 <style scoped>
+.aud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 11px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--blue) 9%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--blue) 25%, var(--border));
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.aud-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.aud-x:hover {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
 .mini {
   height: 32px;
   padding: 0 8px;

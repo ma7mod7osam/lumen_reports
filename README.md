@@ -100,6 +100,30 @@ yarn dev      # Vite dev server with HMR, proxied to your bench
 yarn build    # production build -> served at /lumen
 ```
 
+## Permissions
+
+Lumen ships three roles (created on install):
+
+| Role | Can do |
+|---|---|
+| **Lumen Viewer** | Open the app and see published dashboards |
+| **Lumen Builder** | Viewer + create dashboards, edit/delete their own |
+| **Lumen Manager** | Full control over all dashboards |
+
+Three independent layers:
+
+1. **App access** — `/lumen` requires one of the roles above (System Managers
+   always have access).
+2. **Dashboard visibility** — drafts are private to their owner. Published
+   dashboards are visible to everyone with Lumen access, unless the dashboard
+   names an audience ("Who can see it" in settings) — then only those roles see it.
+3. **Data** — every widget query runs through Frappe's permission layer for the
+   *viewing* user. A builder can only report on doctypes their roles let them
+   read, and two users can open the same dashboard and correctly see different
+   numbers.
+
+Assign the roles from the desk (User → Roles) like any other Frappe role.
+
 ## Ask AI setup (optional)
 
 The AI features run on **Google Gemini**, using a key you provide — the cost stays

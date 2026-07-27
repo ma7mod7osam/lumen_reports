@@ -145,6 +145,10 @@ add_to_apps_screen = [
 # 	}
 # }
 
+# create the app's roles on install and keep them present across migrations
+after_install = "lumen_reports.setup.after_install"
+after_migrate = "lumen_reports.setup.after_migrate"
+
 doc_events = {
 	"*": {
 		"on_change": "lumen_reports.realtime.notify_doc_change",

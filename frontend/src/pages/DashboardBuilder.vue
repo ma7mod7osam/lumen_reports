@@ -142,6 +142,7 @@ const settings = reactive({
   description: '',
   auto_refresh: true,
   is_published: false,
+  visible_to_roles: [],
   filters: [],
 })
 const widgets = ref([])
@@ -170,6 +171,7 @@ onMounted(async () => {
     settings.description = d.description || ''
     settings.auto_refresh = !!d.auto_refresh
     settings.is_published = !!d.is_published
+    settings.visible_to_roles = d.visible_to_roles || []
     settings.filters = d.filters || []
     widgets.value = d.widgets
     for (const item of d.layout || []) {
@@ -370,6 +372,7 @@ async function save() {
       description: settings.description,
       auto_refresh: settings.auto_refresh,
       is_published: settings.is_published,
+      visible_to_roles: settings.visible_to_roles || [],
       filters: settings.filters.filter((f) => f.name),
       widgets: widgets.value.map((w) => ({
         widget_id: w.widget_id,
