@@ -50,6 +50,12 @@
 
         <template v-else-if="entries.length">
           <p v-if="explanation" style="font-size: 12.5px; color: var(--muted)">{{ explanation }}</p>
+          <div v-if="analysis" class="ana-mini">
+            <div style="font-weight: 700; font-size: 13px; color: var(--ink)">{{ analysis.headline }}</div>
+            <ul>
+              <li v-for="f in analysis.findings" :key="f">{{ f }}</li>
+            </ul>
+          </div>
           <!-- the assumptions the AI made — tap one to send it straight back -->
           <div v-if="questions.length && !editWidget" class="flex flex-wrap items-center gap-2">
             <span class="mono qlabel">Refine</span>
@@ -138,6 +144,7 @@ const entries = ref([]) // [{widget, result, empty, included}]
 const explanation = ref('')
 const suggestions = ref([])
 const questions = ref([])
+const analysis = ref(null)
 const clarifyOptions = ref([])
 const askedPrompt = ref('') // what we asked, so a clarify reply can extend it
 const answering = ref(false) // this run is a reply — the AI must build, not re-ask
@@ -198,6 +205,7 @@ async function generate() {
       explanation.value = answer.explanation || ''
       suggestions.value = answer.suggestions || []
       questions.value = answer.questions || []
+      analysis.value = answer.analysis || null
     }
   } catch (e) {
     error.value = e.messages?.[0] || e.message || String(e)
@@ -283,6 +291,25 @@ function confirm() {
   .pv-table {
     grid-column: span 12;
   }
+}
+.ana-mini {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border-left: 3px solid var(--blue);
+  background: var(--panel-2);
+}
+.ana-mini ul {
+  margin-top: 6px;
+  padding-left: 17px;
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.ana-mini li::marker {
+  color: var(--blue);
 }
 .qlabel {
   font-size: 10px;

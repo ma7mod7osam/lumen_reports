@@ -330,6 +330,7 @@ def asks(prompt="how are my sales doing?"):
 			"questions": a.get("questions"),
 			"types": [w["widget"]["widget_type"] for w in (a.get("widgets") or [])],
 			"explanation": (a.get("explanation") or "")[:200],
+			"analysis": a.get("analysis"),
 		}
 	except Exception:
 		return {"traceback": traceback.format_exc()[-700:]}
@@ -406,3 +407,28 @@ def licensing_debug():
 		licensing._fetch = real
 		frappe.conf.pop(licensing.CONFIG_KEY, None)
 	return steps
+
+
+def interview():
+	"""Full two-turn flow: broad ask -> clarify -> answer -> dashboard + analysis."""
+	try:
+		first = ai.ask_ai("how are my sales doing?")
+		if not first.get("clarify"):
+			return {"note": "no interview triggered", "first": {k: first.get(k) for k in ("questions",)}}
+		answer = ai.ask_ai(
+			"Everything — build the full overview",
+			history=[
+				{"role": "user", "text": "how are my sales doing?"},
+				{"role": "assistant", "text": first["clarify"]},
+			],
+			answered=True,
+		)
+		return {
+			"clarify_was": first["clarify"],
+			"options_were": first.get("options"),
+			"widget_types": [w["widget"]["widget_type"] for w in answer.get("widgets") or []],
+			"questions": answer.get("questions"),
+			"analysis": answer.get("analysis"),
+		}
+	except Exception:
+		return {"traceback": traceback.format_exc()[-900:]}

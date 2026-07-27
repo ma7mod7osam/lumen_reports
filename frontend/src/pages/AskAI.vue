@@ -199,6 +199,18 @@
         excluded from saving by default; click the circle to include them anyway.
       </p>
 
+      <!-- what the numbers actually say — written after the queries ran -->
+      <div v-if="answer.analysis" class="panel ana">
+        <div class="mono ana-eyebrow">Analysis</div>
+        <div class="ana-head">{{ answer.analysis.headline }}</div>
+        <ul class="ana-list">
+          <li v-for="f in answer.analysis.findings" :key="f">{{ f }}</li>
+        </ul>
+        <ul v-if="answer.analysis.watch?.length" class="ana-list ana-watch">
+          <li v-for="w in answer.analysis.watch" :key="w">{{ w }}</li>
+        </ul>
+      </div>
+
       <div class="ai-grid">
         <div
           v-for="(entry, i) in answer.widgets"
@@ -520,6 +532,7 @@ async function followUp(text) {
     }
     answer.value.suggestions = response.suggestions || []
     answer.value.questions = response.questions || []
+    if (response.analysis) answer.value.analysis = response.analysis
     followUpText.value = ''
     pinnedSlug.value = '' // board changed since last save
   } catch (e) {
@@ -585,6 +598,46 @@ function reset() {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
+}
+.ana {
+  padding: 15px 18px;
+  margin-bottom: 14px;
+  border-left: 3px solid var(--blue);
+}
+.ana-eyebrow {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 5px;
+}
+.ana-head {
+  font-size: 14.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.ana-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-2);
+  padding-left: 18px;
+  list-style: disc;
+}
+.ana-list li::marker {
+  color: var(--blue);
+}
+.ana-watch {
+  margin-top: 7px;
+}
+.ana-watch li::marker {
+  color: var(--warning);
+}
+.ana-watch li {
+  color: var(--muted);
 }
 .chip-q {
   border-color: color-mix(in srgb, var(--blue) 28%, var(--border));

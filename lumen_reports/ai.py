@@ -224,10 +224,13 @@ Ask before you assume:
 - Ask ONE question, never a list. If the conversation history shows you already asked a
   clarifying question, do NOT ask again — take the user's answer and build.
 - When you DO build, list every judgement you made as a "questions" entry, phrased as a
-  tappable refinement the user can send straight back: "Limit this to 2026 only?",
-  "Should returns be excluded?", "Break it down by branch as well?". These become buttons —
-  write them so that clicking one is a complete instruction on its own.
-- Never ask about something you can see in the metadata, and never ask more than 3.
+  tappable refinement the user can send straight back. These become buttons — write them
+  so that clicking one is a complete instruction on its own.
+- Questions must be SPECIFIC to this request and this site's data — name the real field,
+  the real values, the real numbers ("Focus on the North territory — over half of
+  revenue?", "Exclude the 12 credit notes from these totals?"). Generic filler that could
+  be pasted under any request ("limit the date range?") is worse than silence.
+- Never ask about something already visible in the metadata or live data, and never more than 3.
 
 Also include in the top-level JSON:
 - "suggestions": 2-4 short follow-up ideas the user could pick to extend this dashboard
@@ -565,6 +568,216 @@ def _metadata_for(doctypes: list) -> dict:
 	return out
 
 
+# ---------------------------------------------------------------- data context
+
+# an analyst looks at the data before proposing charts. These cheap aggregate
+# probes (all through the permission-checked engine — never raw SQL) give the
+# model real row counts, real date ranges and real dimension values, so its
+# questions can say "North or South?" instead of guessing, and it stops
+# building widgets on doctypes that turn out to be empty.
+CONTEXT_DIM_FIELDS = 3  # dimension fields probed per doctype
+CONTEXT_DIM_VALUES = 6  # values kept per dimension
+DATE_FIELD_CANDIDATES = ("posting_date", "transaction_date", "date", "creation")
+
+
+def _probe(query):
+	"""One engine probe (plain SELECTs); returns None instead of ever raising."""
+	try:
+		return query_engine.execute(query)
+	except Exception:
+		frappe.clear_last_message()
+		return None
+
+
+def _data_context(doctypes: list[str]) -> dict:
+	"""{doctype: {rows, date_range, dims: {field: {value: count}}}} — best effort."""
+	context = {}
+	for doctype in doctypes[:3]:
+		try:
+			meta = frappe.get_meta(doctype)
+		except Exception:
+			continue
+		if meta.istable:
+			continue  # child tables are described through their parent
+
+		info = {}
+		counted = _probe({"doctype": doctype, "aggregate": {"function": "count"}})
+		rows = int(counted.get("value") or 0) if counted else 0
+		info["rows"] = rows
+
+		if rows:
+			date_field = next(
+				(f for f in DATE_FIELD_CANDIDATES if f == "creation" or meta.has_field(f)), "creation"
+			)
+			lo = _probe({"doctype": doctype, "aggregate": {"function": "min", "field": date_field}})
+			hi = _probe({"doctype": doctype, "aggregate": {"function": "max", "field": date_field}})
+			if lo and hi and lo.get("value") and hi.get("value"):
+				info["date_range"] = {
+					"field": date_field,
+					"from": str(lo["value"])[:10],
+					"to": str(hi["value"])[:10],
+				}
+
+			dims = {}
+			candidates = [
+				f
+				for f in meta.fields
+				if not f.hidden
+				and (
+					(f.fieldtype == "Select" and (f.options or "").strip())
+					or (f.fieldtype == "Link" and (f.in_standard_filter or f.in_list_view))
+				)
+			]
+			for field in candidates[:CONTEXT_DIM_FIELDS]:
+				series = _probe(
+					{
+						"doctype": doctype,
+						"aggregate": {"function": "count"},
+						"group_by": {"field": field.fieldname},
+					}
+				)
+				if series and series.get("labels"):
+					dims[field.fieldname] = {
+						str(label): value
+						for label, value in list(zip(series["labels"], series["values"]))[
+							:CONTEXT_DIM_VALUES
+						]
+						if label not in (None, "")
+					}
+			if dims:
+				info["dims"] = dims
+		context[doctype] = info
+	return context
+
+
+def _context_block(context: dict) -> str:
+	if not context:
+		return ""
+	return (
+		"\n\nLIVE DATA on this site (real, permission-checked aggregates — trust these "
+		"over assumptions):\n" + json.dumps(context, default=str) + "\n"
+		"Rules that follow from it:\n"
+		"- NEVER build a widget on a doctype the context shows has 0 rows (unless the "
+		"user explicitly asks for it; then keep it and it will be flagged 'no data yet').\n"
+		"- Date filters must fall inside the actual date_range — a 'this year' request "
+		"when the data ends last year should use the data's final year and say so.\n"
+		"- When you ask anything or offer options, use the REAL values and counts shown "
+		"here (e.g. territories North/South), never invented placeholders.\n"
+	)
+
+
+# ---------------------------------------------------------------- analysis
+
+# the model proposes widgets before any query runs, so its "explanation" can
+# never contain a real number. This second pass feeds the EXECUTED results
+# back and asks for an analyst's read — and lets it request a few follow-up
+# queries first when the question genuinely needs digging (one round, capped,
+# permission-checked like everything else).
+MAX_ANALYSIS_PROBES = 4
+
+PROBE_GUIDE = (
+	"A probe is the same query object widgets use: {doctype, parent_doctype?, "
+	'aggregate: {function, field?}, group_by?: {field, via?, time_grain?}, filters?: '
+	"[[field, op, value]]}. Only fields from the metadata you were shown."
+)
+
+
+def _results_digest(widgets):
+	"""Compact, token-safe summary of what the widgets actually returned."""
+	digest = []
+	for w in widgets:
+		result, wd = w["result"], w["widget"]
+		entry = {"title": wd["title"], "type": wd["widget_type"]}
+		kind = result.get("result_type")
+		if kind == "number":
+			entry["value"] = result.get("value")
+		elif kind == "series":
+			entry["data"] = dict(
+				zip([str(l) for l in (result.get("labels") or [])[:14]], (result.get("values") or [])[:14])
+			)
+		elif kind == "matrix":
+			rows, values = result.get("rows") or [], result.get("values") or []
+			entry["row_totals"] = {
+				str(r): sum(v or 0 for v in (values[i] if i < len(values) else []))
+				for i, r in enumerate(rows[:10])
+			}
+			entry["cols"] = [str(c) for c in (result.get("cols") or [])[:10]]
+		elif kind == "points":
+			entry["points"] = (result.get("points") or [])[:8]
+		elif kind == "tree":
+			entry["top_level"] = [
+				{"label": n.get("label"), "value": n.get("value"), "share": round(n.get("share", 0), 3)}
+				for n in (result.get("nodes") or [])[:8]
+			]
+		elif kind == "rows":
+			entry["rows_returned"] = len(result.get("rows") or [])
+		digest.append(entry)
+	return digest
+
+
+def _clean_analysis(raw):
+	if not isinstance(raw, dict):
+		return None
+	headline = str(raw.get("headline") or "").strip()
+	findings = [str(f).strip() for f in (raw.get("findings") or []) if str(f).strip()][:6]
+	if not headline or not findings:
+		return None
+	return {
+		"headline": headline[:220],
+		"findings": findings,
+		"watch": [str(x).strip() for x in (raw.get("watch") or []) if str(x).strip()][:3],
+	}
+
+
+def _analyze(prompt, widgets, context, key, model):
+	"""Analyst narrative over executed results. Never raises — analysis is a
+	bonus, and a failure here must not cost the user their dashboard."""
+	try:
+		base = (
+			"You are a sharp, plain-spoken business analyst. The user asked:\n"
+			f"{prompt}\n\n"
+			"These widgets were just built and EXECUTED — the numbers below are real:\n"
+			+ json.dumps(_results_digest(widgets), default=str)
+			+ "\n\nSite context (row counts, date ranges, dimension values):\n"
+			+ json.dumps(context, default=str)
+			+ "\n\nWrite the analysis a good analyst would put at the top of this report:\n"
+			'{"analysis": {"headline": "<the single most important takeaway, with its '
+			'number>", "findings": ["<3-6 short observations, each carrying real numbers '
+			"— shares, ratios, comparisons, concentrations. Compute them from the data "
+			'above; never restate a chart title>"], "watch": ["<0-3 anomalies or risks '
+			'worth checking>"]}}\n\n'
+			"OR — only if the question truly cannot be answered from these results — "
+			'request more data ONCE: {"probes": [<up to %d query objects>]}. %s\n'
+			"Respond with ONLY one of those two JSON objects."
+			% (MAX_ANALYSIS_PROBES, PROBE_GUIDE)
+		)
+		answer = _generate(base, key, model)
+
+		if isinstance(answer, dict) and isinstance(answer.get("probes"), list):
+			extra = []
+			for query in answer["probes"][:MAX_ANALYSIS_PROBES]:
+				if not isinstance(query, dict):
+					continue
+				result = _probe(query)
+				if result:
+					extra.append(
+						{"query": query, "result": _results_digest([{"result": result, "widget": {"title": "probe", "widget_type": ""}}])[0]}
+					)
+			answer = _generate(
+				base
+				+ "\n\nYou requested probes. Their results (no more probes allowed — "
+				"return the analysis now):\n"
+				+ json.dumps(extra, default=str),
+				key,
+				model,
+			)
+
+		return _clean_analysis((answer or {}).get("analysis"))
+	except Exception:
+		frappe.clear_last_message()
+		return None
+
+
 # ---------------------------------------------------------------- ask
 
 
@@ -633,11 +846,30 @@ def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
 	if not metadata:
 		frappe.throw(_("You don't have access to the data needed for that question."))
 
+	# look at the data before deciding anything — an analyst never works blind
+	context = _data_context(chosen)
+
 	existing_block = ""
 	if existing_titles:
 		existing_block = (
 			"\n\nWidgets ALREADY on the user's board (do NOT recreate these — return only "
 			"new, different widgets that extend the board):\n" + json.dumps(existing_titles)
+		)
+
+	# a broad opening ask deserves one round of scoping — with options assembled
+	# from the site's real values, so answering is one tap
+	interview_block = ""
+	if not history and not answered:
+		interview_block = (
+			"\n\nINTERVIEW FIRST: this is the user's OPENING message. If it names a broad "
+			"goal without a specific angle (no explicit metric, dimension or time frame — "
+			"e.g. 'how are my sales', 'make me a dashboard', 'analyze my business'), do "
+			"NOT build yet. Return {\"clarify\": \"<one sharp question about what matters "
+			"most to them>\", \"options\": [<3-4 concrete directions built from the LIVE "
+			"DATA — name real values and real counts>, \"Everything — build the full "
+			"overview\"]}. Always include that final catch-all option.\n"
+			"If the message already names what they want (a metric, a dimension, a "
+			"period, or a specific business question), skip the interview and build."
 		)
 
 	# step 2: build the widget spec
@@ -650,6 +882,8 @@ def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
 		"Metadata for the relevant doctypes (doctype -> fields; entries with "
 		"parent_doctype are line-item child tables of that parent):\n"
 		+ json.dumps(metadata, default=str)
+		+ _context_block(context)
+		+ interview_block
 		+ existing_block
 	)
 	spec = _generate(build_prompt, key, model)
@@ -704,6 +938,9 @@ def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
 		"widgets": widgets,
 		"suggestions": [s for s in (spec.get("suggestions") or []) if isinstance(s, str)][:4],
 		"questions": [q for q in (spec.get("questions") or []) if isinstance(q, str)][:3],
+		# written AFTER execution, from the real numbers — the model finally
+		# gets to say what the data shows, not just what the charts are
+		"analysis": _analyze(prompt, widgets, context, key, model),
 	}
 
 
