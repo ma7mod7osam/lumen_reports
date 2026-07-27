@@ -409,7 +409,25 @@ def _scrub(text: str, key: str) -> str:
 	return str(text).replace(key, "***") if key else str(text)
 
 
-def _generate(prompt: str, key: str, model: str) -> dict:
+# free-tier quotas are PER MODEL and per day. When the chosen model's bucket
+# runs dry we fall back to this one instead of failing the whole ask — and the
+# cheap orchestration steps run on it by default, saving the good model's
+# quota for the calls where quality actually shows.
+FALLBACK_MODEL = "gemini-flash-lite-latest"
+
+
+def _routine_model(model: str) -> str:
+	"""Model for the low-stakes calls (doctype picking, analysis digests)."""
+	return FALLBACK_MODEL if model != FALLBACK_MODEL else model
+
+
+class _RateLimited(Exception):
+	def __init__(self, detail):
+		self.detail = detail
+		super().__init__(detail)
+
+
+def _generate_once(prompt: str, key: str, model: str) -> dict:
 	"""One Gemini call, JSON-mode. Returns the parsed JSON object.
 
 	The key travels in the x-goog-api-key header — never in the URL — so it
@@ -437,11 +455,7 @@ def _generate(prompt: str, key: str, model: str) -> dict:
 		if response.status_code in (400, 401, 403) and "key" in detail.lower():
 			frappe.throw(_("Your Gemini API key was rejected. Check it in AI settings. ({0})").format(detail))
 		if response.status_code == 429:
-			frappe.throw(
-				_("Gemini rate limit reached. Wait a minute and try again, or switch model in AI settings. ({0})").format(
-					detail or "quota exceeded"
-				)
-			)
+			raise _RateLimited(detail or "quota exceeded")
 		frappe.throw(_("Gemini API error {0}: {1}").format(response.status_code, detail))
 
 	try:
@@ -449,6 +463,26 @@ def _generate(prompt: str, key: str, model: str) -> dict:
 		return json.loads(text)
 	except Exception:
 		frappe.throw(_("The AI returned an unreadable response. Try rephrasing your question."))
+
+
+def _generate(prompt: str, key: str, model: str) -> dict:
+	"""_generate_once, but a dry quota degrades to the fallback model instead
+	of killing the whole ask."""
+	try:
+		return _generate_once(prompt, key, model)
+	except _RateLimited as first:
+		if model != FALLBACK_MODEL:
+			try:
+				return _generate_once(prompt, key, FALLBACK_MODEL)
+			except _RateLimited as second:
+				first = second
+		frappe.throw(
+			_(
+				"Google's free-tier quota for this key is used up for today (both {0} and "
+				"the {1} fallback). Quotas reset daily — try again later, add a personal "
+				"key in AI settings, or upgrade the key's plan. ({2})"
+			).format(model, FALLBACK_MODEL, first.detail)
+		)
 
 
 # ---------------------------------------------------------------- metadata
@@ -751,7 +785,8 @@ def _analyze(prompt, widgets, context, key, model):
 			"Respond with ONLY one of those two JSON objects."
 			% (MAX_ANALYSIS_PROBES, PROBE_GUIDE)
 		)
-		answer = _generate(base, key, model)
+		routine = _routine_model(model)
+		answer = _generate(base, key, routine)
 
 		if isinstance(answer, dict) and isinstance(answer.get("probes"), list):
 			extra = []
@@ -769,7 +804,7 @@ def _analyze(prompt, widgets, context, key, model):
 				"return the analysis now):\n"
 				+ json.dumps(extra, default=str),
 				key,
-				model,
+				routine,
 			)
 
 		return _clean_analysis((answer or {}).get("analysis"))
@@ -831,7 +866,7 @@ def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
 		'ambiguous to attempt, {"clarify": "<one short question>", "options": ["<likely '
 		'answer>", ...]} with 2-4 tappable answer options when they are predictable.',
 		key,
-		model,
+		_routine_model(model),  # an easy task — save the good model's quota
 	)
 	if pick.get("clarify") and not answered:
 		return {
