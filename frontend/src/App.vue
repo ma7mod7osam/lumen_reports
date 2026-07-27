@@ -4,17 +4,10 @@
       <div class="mx-auto max-w-7xl px-6">
         <div class="row">
           <router-link to="/" class="brand">
-            <span class="tile">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-                <rect x="2" y="3" width="2.4" height="12" rx="1" />
-                <rect x="6" y="3" width="1.4" height="12" rx="0.7" opacity="0.85" />
-                <rect x="9" y="3" width="2.4" height="12" rx="1" opacity="0.7" />
-                <rect x="13" y="3" width="1.4" height="12" rx="0.7" opacity="0.5" />
-              </svg>
-            </span>
+            <img class="tile" :src="appIcon" alt="" width="36" height="36" />
             <span>
-              Lumen
-              <small>REPORTS</small>
+              <span class="wm">Lumen<b>Reports</b></span>
+              <small>ANALYTICS</small>
             </span>
           </router-link>
           <span class="sp" style="flex: 1"></span>
@@ -52,6 +45,10 @@ import { call } from 'frappe-ui'
 import { theme, toggleTheme, applyTheme } from '@/lib/theme'
 
 applyTheme()
+
+// served by Frappe from the app's public folder, not bundled — bound rather than
+// a literal src so Vite doesn't try to resolve it at build time
+const appIcon = '/assets/lumen_reports/logo/svg/app-icon.svg'
 
 // unlicensed use should be visible rather than silent; a failure to check
 // must never keep the app from loading

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 396 56" width="792" height="112" fill="none">
+  
+  <g transform="translate(0,6) scale(0.9)">
+  <rect x="7" y="8" width="6.5" height="32" rx="3.25" fill="#1463FF"></rect>
+  <rect x="18" y="11" width="13" height="5.4" rx="2.7" fill="#7FA8FF"></rect>
+  <rect x="18" y="20.3" width="22" height="5.4" rx="2.7" fill="#1463FF"></rect>
+  <rect x="18" y="29.6" width="16" height="5.4" rx="2.7" fill="#7FA8FF"></rect>
+  </g>
+  <text class="w" x="52" y="32" font-size="30" fill="#0C1322">Lumen<tspan fill="#1463FF">Reports</tspan></text>
+  <text class="e" x="54" y="46" font-size="8.5" fill="#1463FF">ANALYTICS</text>
+  <rect x="238" y="6" width="2" height="42" fill="#E4E8F0"></rect>
+  <text class="a" x="380" y="30" font-size="27" text-anchor="end" fill="#0C1322">لومِن<tspan fill="#1463FF"> تقارير</tspan></text>
+  <text class="as" x="380" y="46" font-size="14" text-anchor="end" fill="#1463FF">تحليلات</text>
+</svg>

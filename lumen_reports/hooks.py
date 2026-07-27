@@ -4,7 +4,7 @@ app_publisher = "Mahmoud Hosam"
 app_description = "Beautiful, fast, live-updating dashboards and reports for Frappe — with a no-code builder and plain-English Ask AI"
 app_email = "mhusam.b@gmail.com"
 app_license = "Proprietary"
-app_logo_url = "/assets/lumen_reports/logo.svg"
+app_logo_url = "/assets/lumen_reports/logo/svg/app-icon.svg"
 
 # Apps
 # ------------------
@@ -15,7 +15,7 @@ app_logo_url = "/assets/lumen_reports/logo.svg"
 add_to_apps_screen = [
 	{
 		"name": "lumen_reports",
-		"logo": "/assets/lumen_reports/logo.svg",
+		"logo": "/assets/lumen_reports/logo/svg/app-icon.svg",
 		"title": "Lumen Reports",
 		"route": "/lumen",
 	}

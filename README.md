@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="lumen_reports/public/logo.svg" width="72" height="72" alt="Lumen Reports" />
+<img src="lumen_reports/public/logo/svg/app-icon.svg" width="76" height="76" alt="Lumen Reports" />
 
 # Lumen Reports
 

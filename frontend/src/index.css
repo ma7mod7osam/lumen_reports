@@ -132,17 +132,20 @@ body {
   color: var(--ink);
   text-decoration: none;
 }
+/* the official app-icon carries its own gradient and corner radius — we only
+   add the lift. Never recolour or restyle the mark itself. */
 .brand .tile {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--blue), var(--blue-deep));
-  display: flex;
-  align-items: center;
-  justify-content: center;
   box-shadow: 0 6px 18px rgba(20, 99, 255, 0.35);
   flex: none;
-  color: #fff;
+  display: block;
+}
+/* "Reports" always carries the blue — never set the wordmark in one colour */
+.brand .wm b {
+  color: var(--blue);
+  font-weight: 800;
 }
 .brand small {
   display: block;
