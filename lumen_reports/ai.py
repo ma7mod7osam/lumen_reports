@@ -813,7 +813,12 @@ def _analyze(prompt, widgets, context, key, model):
 
 
 @frappe.whitelist()
-def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
+def ask_ai(
+	prompt: str,
+	history: str | list | None = None,
+	existing_titles: str | list | None = None,
+	answered: bool | str = False,
+):
 	"""Natural-language question -> widget spec + executed result.
 
 	`history` is the running conversation ([{role, text}, ...], kept client
@@ -976,7 +981,7 @@ def ask_ai(prompt: str, history=None, existing_titles=None, answered=False):
 
 
 @frappe.whitelist()
-def modify_ai_widget(prompt: str, widget):
+def modify_ai_widget(prompt: str, widget: str | dict):
 	"""Revise one existing widget from a natural-language instruction.
 	Same safety path as ask_ai: the model only emits a spec, which is
 	validated and executed through the permission-aware engine."""
@@ -1205,7 +1210,7 @@ def _unique_slug(base: str) -> str:
 
 
 @frappe.whitelist()
-def save_ai_result(widgets, title: str | None = None, slug: str | None = None):
+def save_ai_result(widgets: str | list, title: str | None = None, slug: str | None = None):
 	"""Persist AI-built widgets: into a NEW dashboard (title) or appended to an
 	existing one (slug). Frappe enforces create/write permissions on save."""
 	widgets = frappe.parse_json(widgets)

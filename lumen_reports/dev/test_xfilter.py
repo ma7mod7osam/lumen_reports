@@ -1,5 +1,5 @@
 # Dev test: cross-filtering across grains + dashboard filters on line widgets.
-# bench --site <site> execute lumen_reports.dev_test_xfilter.run
+# bench --site <site> execute lumen_reports.dev.test_xfilter.run
 
 from lumen_reports import api
 

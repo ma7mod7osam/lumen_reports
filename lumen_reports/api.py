@@ -81,7 +81,12 @@ def get_dashboard(slug: str):
 
 
 @frappe.whitelist()
-def run_widget(slug: str, widget_id: str, filter_values=None, cross_filters=None):
+def run_widget(
+	slug: str,
+	widget_id: str,
+	filter_values: str | dict | None = None,
+	cross_filters: str | list | None = None,
+):
 	"""Execute a widget's saved query with the given dashboard filter values
 	and any active cross-filter (a clicked chart segment on a sibling widget).
 
@@ -450,7 +455,7 @@ def get_link_options(link_doctype: str, txt: str = "", page_length: int = 20):
 
 
 @frappe.whitelist()
-def preview_query(query):
+def preview_query(query: str | dict):
 	"""Run a query for the wizard's live preview. Builder permission required;
 	the query engine still enforces read permissions on the target doctype."""
 	_require_builder()
@@ -460,7 +465,7 @@ def preview_query(query):
 
 
 @frappe.whitelist()
-def save_dashboard(payload):
+def save_dashboard(payload: str | dict):
 	"""Create or update a dashboard from the builder.
 
 	payload: {name?, title, slug, description, auto_refresh, is_published,

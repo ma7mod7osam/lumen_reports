@@ -1,8 +1,9 @@
 # Dev test for Ask AI: mocks the Gemini call to prove the orchestration,
 # validation, repair loop, pruning, and persistence work without a real key.
-# bench --site <site> execute lumen_reports.dev_test_ai.run
+# bench --site <site> execute lumen_reports.dev.test_ai.run
 
 import json
+from unittest import mock
 
 import frappe
 
@@ -64,13 +65,25 @@ def _answer(widgets):
 	}
 
 
+# One patch.object per test replaces ai._generate with this dispatcher; the
+# test bodies then swap  freely. Idiomatic mocking, no bare
+# module-attribute assignment, restored automatically on exit.
+class _Fake:
+	target = None
+
+	def __call__(self, prompt, key, model):
+		return self.target(prompt, key, model)
+
+
+_fake = _Fake()
+
+
 def run():
 	out = {}
-	original = ai._generate
 	ai.save_ai_settings(api_key="TEST-FAKE-KEY")
 	calls = {"n": 0}
 
-	def mock(responses):
+	def scripted(responses):
 		def inner(prompt, key, model):
 			calls["n"] += 1
 			if calls["n"] == 1:
@@ -80,9 +93,11 @@ def run():
 		calls["n"] = 0
 		return inner
 
+	patcher = mock.patch.object(ai, "_generate", _fake)
+	patcher.start()
 	try:
 		# multi-widget happy path: empty widgets are FLAGGED, never dropped
-		ai._generate = mock([_answer([KPI_WIDGET, BRAND_WIDGET, EMPTY_WIDGET])])  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		_fake.target = scripted([_answer([KPI_WIDGET, BRAND_WIDGET, EMPTY_WIDGET])])
 		answer = ai.ask_ai("detailed sales dashboard")
 		out["widget_count"] = len(answer["widgets"])  # expect 3 — nothing dropped
 		out["empty_flags"] = [w["empty"] for w in answer["widgets"]]  # [False, False, True]
@@ -103,12 +118,12 @@ def run():
 				"filters": [["docstatus", "=", 1]],
 			},
 		}
-		ai._generate = mock([_answer([hour_donut])])  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		_fake.target = scripted([_answer([hour_donut])])
 		coerced = ai.ask_ai("peak hours")
 		out["hour_donut_coerced_to"] = coerced["widgets"][0]["widget"]["widget_type"]
 
 		# batch repair: one bad widget in the first answer, fixed in the second
-		ai._generate = mock([_answer([KPI_WIDGET, BAD_WIDGET]), _answer([KPI_WIDGET, BRAND_WIDGET])])  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		_fake.target = scripted([_answer([KPI_WIDGET, BAD_WIDGET]), _answer([KPI_WIDGET, BRAND_WIDGET])])
 		answer2 = ai.ask_ai("sales dashboard")
 		out["repair_widgets"] = len(answer2["widgets"])
 		out["repair_calls"] = calls["n"]  # pick + first + repair = 3
@@ -122,7 +137,7 @@ def run():
 				return {"doctypes": ["Sales Invoice"]}
 			return _answer([BRAND_WIDGET])
 
-		ai._generate = spy  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		_fake.target = spy
 		ai.ask_ai(
 			"also add brand split",
 			history=[{"role": "user", "text": "sales dashboard"}, {"role": "assistant", "text": "Built: Sales Overview"}],
@@ -132,7 +147,7 @@ def run():
 		out["existing_titles_in_prompt"] = "Total Revenue" in seen_prompts[1]
 
 		# clarify with options passes through
-		ai._generate = lambda p, k, m: {"clarify": "Which company?", "options": ["Lumen Retail", "All"]}  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		_fake.target = lambda p, k, m: {"clarify": "Which company?", "options": ["Lumen Retail", "All"]}
 		clarified = ai.ask_ai("how are sales")
 		out["clarify_options"] = clarified.get("options")
 
@@ -159,7 +174,7 @@ def run():
 		after_doc.save(ignore_permissions=True)
 		frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	finally:
-		ai._generate = original  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		patcher.stop()
 		ai.clear_ai_key()
 	return out
 
@@ -167,19 +182,23 @@ def run():
 def run_site():
 	"""Site-wide key fallback + admin gate."""
 	out = {}
-	original = ai._generate
 
-	def mock(prompt, key, model):
-		mock.calls = getattr(mock, "calls", 0) + 1
+	def fake_generate(prompt, key, model):
 		out.setdefault("keys_seen", []).append(key)
-		if mock.calls % 2 == 1:
+		# the pipeline makes several calls per ask (pick, build, analysis...);
+		# answer by what is being asked rather than by call position
+		if "Available doctypes" in prompt:
 			return {"doctypes": ["Sales Invoice"]}
+		if "business analyst" in prompt:
+			return {"analysis": {"headline": "ok", "findings": ["ok"]}}
 		return _answer([BRAND_WIDGET])
 
+	patcher = mock.patch.object(ai, "_generate", _fake)
+	patcher.start()
 	try:
 		ai.clear_ai_key()
 		ai.save_site_ai_settings(api_key="SITE-SHARED-KEY")
-		ai._generate = mock  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
+		_fake.target = fake_generate
 		answer = ai.ask_ai("revenue by brand")
 		out["site_fallback_worked"] = answer["widgets"][0]["result"]["labels"] == [
 			"Vertex",
@@ -197,8 +216,8 @@ def run_site():
 		except frappe.PermissionError:
 			out["viewer_blocked"] = True
 	finally:
+		patcher.stop()
 		frappe.set_user("Administrator")
-		ai._generate = original  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		ai.clear_ai_key()
 		ai.clear_site_ai_key()
 	return out

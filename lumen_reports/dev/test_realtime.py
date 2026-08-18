@@ -1,5 +1,5 @@
 # Development helper: verify realtime registry + hook execution on save.
-# Run with: bench --site <site> execute lumen_reports.dev_test_realtime.run
+# Run with: bench --site <site> execute lumen_reports.dev.test_realtime.run
 
 import frappe
 

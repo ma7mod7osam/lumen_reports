@@ -1,6 +1,6 @@
 # Dev helper: build a dashboard holding one widget of every chart type, so the
 # renderers can be eyeballed (and DOM-checked) against real data in one place.
-# bench --site <site> execute lumen_reports.dev_gallery.run
+# bench --site <site> execute lumen_reports.dev.gallery.run
 
 import frappe
 

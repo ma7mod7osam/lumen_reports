@@ -1,5 +1,5 @@
 # Role/permission tests with real users.
-# bench --site <site> execute lumen_reports.dev.dev_test_perms.run
+# bench --site <site> execute lumen_reports.dev.test_perms.run
 
 import json
 import traceback
@@ -136,7 +136,7 @@ def run():
 			)
 		)
 		out["builder_created_own"] = bool(created.get("name"))
-		frappe.db.commit()  # protect from the deny-path rollbacks that follow
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits this fixture so the deny-path assertions that follow (which roll back) cannot undo it
 		out["builder_edit_own"] = _try(
 			api.save_dashboard,
 			json.dumps({"name": created["name"], "title": "Builder Own v2", "widgets": [], "layout": []}),

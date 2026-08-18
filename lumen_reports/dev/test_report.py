@@ -1,5 +1,5 @@
 # Dev test for the join/related-field report engine.
-# bench --site <site> execute lumen_reports.dev_test_report.run
+# bench --site <site> execute lumen_reports.dev.test_report.run
 
 import traceback
 

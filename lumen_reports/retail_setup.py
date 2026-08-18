@@ -93,11 +93,14 @@ def _generate_demo():
 	omits mandatory fields that carry field/global defaults (Item.stock_uom,
 	Customer.customer_type, ...); new_doc() applies those defaults, get_doc()
 	does not."""
+	from unittest import mock
+
 	from erpnext.setup import demo
 
-	original_record = demo.create_demo_record
-	original_txn = demo.create_transaction
-
+	# erpnext's demo module builds docs via get_doc(dict), which skips field
+	# defaults and fails on this site's mandatory fields. For the duration of
+	# setup_demo_data() we swap in builders that go through new_doc().update();
+	# patch.object restores the originals on exit, even on error.
 	def patched_record(record):
 		record = dict(record)
 		doctype = record.pop("doctype")
@@ -130,13 +133,11 @@ def _generate_demo():
 		doc.save(ignore_permissions=True)
 		doc.submit()
 
-	demo.create_demo_record = patched_record  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
-	demo.create_transaction = patched_transaction  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
-	try:
+	with (
+		mock.patch.object(demo, "create_demo_record", patched_record),
+		mock.patch.object(demo, "create_transaction", patched_transaction),
+	):
 		demo.setup_demo_data()
-	finally:
-		demo.create_demo_record = original_record  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
-		demo.create_transaction = original_txn  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
 
 
 def last_error():

@@ -1,6 +1,6 @@
 # Copyright (c) 2026, Lumen and contributors
 # Development helper: seed demo data and a demo dashboard.
-# Run with: bench --site <site> execute lumen_reports.dev_seed.run
+# Run with: bench --site <site> execute lumen_reports.dev.seed.run
 
 import json
 import random

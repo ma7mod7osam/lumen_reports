@@ -1,6 +1,6 @@
 # Development helper: verify stage 5 backend — caching, invalidation,
 # cross-filters, publish-visibility permissions.
-# Run with: bench --site <site> execute lumen_reports.dev_test_stage5.run
+# Run with: bench --site <site> execute lumen_reports.dev.test_stage5.run
 
 import frappe
 
