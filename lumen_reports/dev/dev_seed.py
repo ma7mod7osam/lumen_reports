@@ -17,7 +17,7 @@ def run():
 	random.seed(42)
 	_seed_todos()
 	_seed_dashboard()
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	return {
 		"todos": frappe.db.count("ToDo"),
 		"dashboards": frappe.get_all("Lumen Dashboard", pluck="route_slug"),

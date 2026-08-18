@@ -179,7 +179,7 @@ def _run():
 
 	doc.layout_json = frappe.as_json(layout)
 	doc.insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	return {"slug": SLUG, "widgets": len(doc.widgets)}
 
 

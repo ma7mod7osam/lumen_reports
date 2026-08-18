@@ -253,6 +253,6 @@ def run():
 			"filters_json": json.dumps(FILTERS),
 		}
 	).insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 
 	return {"slug": SLUG, "widgets": len(widgets)}

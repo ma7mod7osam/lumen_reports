@@ -21,7 +21,7 @@ def ensure_fixtures():
 	from erpnext.setup.setup_wizard.operations import install_fixtures
 
 	install_fixtures.install(COUNTRY)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	return "installed"
 
 
@@ -66,7 +66,7 @@ def ensure_company():
 		}
 	)
 	company.insert(ignore_permissions=True)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	return company.name
 
 
@@ -83,7 +83,7 @@ def ensure_defaults():
 		}
 	)
 	install_fixtures.install_defaults(args)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	return "ok"
 
 
@@ -130,13 +130,13 @@ def _generate_demo():
 		doc.save(ignore_permissions=True)
 		doc.submit()
 
-	demo.create_demo_record = patched_record
-	demo.create_transaction = patched_transaction
+	demo.create_demo_record = patched_record  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
+	demo.create_transaction = patched_transaction  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
 	try:
 		demo.setup_demo_data()
 	finally:
-		demo.create_demo_record = original_record
-		demo.create_transaction = original_txn
+		demo.create_demo_record = original_record  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
+		demo.create_transaction = original_txn  # nosemgrep: frappe-monkey-patching-not-allowed — demo-only: erpnext's demo module builds docs via get_doc(dict) which skips field defaults; wrapped so it uses new_doc().update() instead, restored in finally
 
 
 def last_error():
@@ -260,9 +260,9 @@ def enrich(n=180):
 				frappe.clear_last_message()
 
 		if created % 40 == 0:
-			frappe.db.commit()
+			frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	return {
 		"invoices_created": created,
 		"payments_created": paid,
@@ -313,7 +313,7 @@ def enrich_items():
 			continue
 		frappe.db.set_value("Item", sku, {"item_group": group, "brand": brand})
 		updated += 1
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	return {"brands": len(BRANDS), "item_groups": len(ITEM_GROUPS), "items_updated": updated}
 
 
@@ -369,7 +369,7 @@ def add_sales_team():
 		where st.parenttype = 'Sales Invoice' and si.company = %s""",
 		(DEMO_COMPANY,),
 	)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	frappe.cache.delete_keys("lumen_res|Sales Invoice|")
 	return {"sales_people": len(SALES_PEOPLE), "invoices_assigned": added}
 
@@ -397,7 +397,7 @@ def scatter_transaction_hours():
 			where name = %s""",
 			(time_str, time_str, row.name),
 		)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	frappe.cache.delete_keys("lumen_res|Sales Invoice|")
 	return {"updated": len(rows)}
 
@@ -416,7 +416,7 @@ def backfill_territory():
 		if territory:
 			frappe.db.set_value("Sales Invoice", row.name, "territory", territory, update_modified=False)
 			fixed += 1
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 	return {"backfilled": fixed}
 
 
@@ -453,7 +453,7 @@ def run():
 		steps["demo"] = "already generated"
 	else:
 		_generate_demo()
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
 		steps["demo_company"] = frappe.db.get_single_value("Global Defaults", "demo_company")
 
 	return steps

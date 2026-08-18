@@ -49,7 +49,7 @@ def run():
 			}
 		).insert(ignore_permissions=True)
 	frappe.db.set_value("Lumen Dashboard", {"route_slug": "team-tasks"}, "is_published", 0)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	frappe.clear_cache()
 
 	frappe.set_user(TEST_USER)
@@ -66,5 +66,5 @@ def run():
 	finally:
 		frappe.set_user("Administrator")
 
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	return out

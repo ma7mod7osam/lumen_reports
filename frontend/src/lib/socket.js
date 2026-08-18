@@ -19,5 +19,6 @@ export function getSocket() {
     withCredentials: true,
     reconnectionAttempts: 5,
   })
+  window.__lumen_socket = socket // debug/test handle, mirrors __lumen_chart
   return socket
 }

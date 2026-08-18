@@ -28,4 +28,3 @@ def get_context(context):
 		"site_name": frappe.local.site,
 		"socketio_port": frappe.conf.socketio_port or 9000,
 	}
-	frappe.db.commit()

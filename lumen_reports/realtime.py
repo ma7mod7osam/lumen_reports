@@ -75,8 +75,14 @@ def notify_doc_change(doc, method=None, *args, **kwargs):
 	# as the realtime refresh, so cache and liveness can't disagree
 	frappe.cache.delete_keys(f"lumen_res|{doc.doctype}|")
 
+	# the message carries only a doctype name and dashboard slugs — no record
+	# data — and Frappe's socketio joins every authenticated desk client to the
+	# per-doctype room, which is the right scope for a "this doctype changed"
+	# signal (rather than a site-wide broadcast). Data still loads per-viewer
+	# through the permission-checked engine.
 	frappe.publish_realtime(
 		EVENT_NAME,
 		message={"doctype": doc.doctype, "dashboards": slugs},
+		doctype=doc.doctype,
 		after_commit=True,
 	)

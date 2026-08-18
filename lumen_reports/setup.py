@@ -32,7 +32,6 @@ def ensure_roles():
 			frappe.get_doc(
 				{"doctype": "Role", "role_name": name, "desk_access": 0}
 			).insert(ignore_permissions=True)
-	frappe.db.commit()
 
 
 def after_install():

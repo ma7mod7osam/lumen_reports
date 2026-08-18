@@ -326,7 +326,6 @@ def save_ai_settings(api_key: str | None = None, model: str | None = None):
 		doc.gemini_api_key = api_key
 	doc.flags.ignore_permissions = True  # scoped to session user above
 	doc.save()
-	frappe.db.commit()
 	return get_ai_status()
 
 
@@ -338,7 +337,6 @@ def clear_ai_key():
 		doc.gemini_api_key = ""
 		doc.flags.ignore_permissions = True
 		doc.save()
-		frappe.db.commit()
 	return get_ai_status()
 
 
@@ -352,7 +350,6 @@ def save_site_ai_settings(api_key: str | None = None, model: str | None = None):
 	if api_key:
 		site.gemini_api_key = api_key
 	site.save()
-	frappe.db.commit()
 	return get_ai_status()
 
 
@@ -362,7 +359,6 @@ def clear_site_ai_key():
 	site = frappe.get_doc("Lumen AI Site Settings")
 	site.gemini_api_key = ""
 	site.save()
-	frappe.db.commit()
 	return get_ai_status()
 
 

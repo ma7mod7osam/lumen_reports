@@ -37,7 +37,7 @@ def fix_stored_models():
 	frappe.db.sql(
 		"update `tabLumen AI Settings` set model = 'gemini-flash-latest' where model like 'gemini-2.%'"
 	)
-	frappe.db.commit()
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	return "ok"
 
 
@@ -354,11 +354,11 @@ def licensing_check():
 	# simulate Frappe Cloud answers
 	real_fetch = licensing._fetch
 	try:
-		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme.frappe.cloud"}
+		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme.frappe.cloud"}  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		frappe.conf[licensing.CONFIG_KEY] = "test-secret"
 		out["active"] = licensing.get_status(force=True)
 
-		licensing._fetch = lambda key: {"enabled": 0, "plan": "Pro", "site": "acme.frappe.cloud"}
+		licensing._fetch = lambda key: {"enabled": 0, "plan": "Pro", "site": "acme.frappe.cloud"}  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		out["disabled"] = licensing.get_status(force=True)
 		out["is_licensed_when_expired"] = licensing.is_licensed()
 
@@ -366,13 +366,13 @@ def licensing_check():
 		def boom(key):
 			raise RuntimeError("frappe cloud unreachable")
 
-		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme.frappe.cloud"}
+		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme.frappe.cloud"}  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		licensing.get_status(force=True)
-		licensing._fetch = boom
+		licensing._fetch = boom  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		out["outage"] = licensing.get_status(force=True)
 		out["is_licensed_during_outage"] = licensing.is_licensed()
 	finally:
-		licensing._fetch = real_fetch
+		licensing._fetch = real_fetch  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		frappe.conf.pop(licensing.CONFIG_KEY, None)
 		frappe.cache().delete_value(licensing.CACHE_KEY)
 		frappe.cache().delete_value(f"{licensing.CACHE_KEY}:last_good")
@@ -390,7 +390,7 @@ def licensing_debug():
 	real = licensing._fetch
 	try:
 		frappe.conf[licensing.CONFIG_KEY] = "test-secret"
-		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme"}
+		licensing._fetch = lambda key: {"enabled": 1, "plan": "Pro", "site": "acme"}  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		s1 = licensing.get_status(force=True)
 		steps.append({"after_good_fetch": s1})
 		steps.append({"cache_main": frappe.cache().get_value(licensing.CACHE_KEY)})
@@ -399,12 +399,12 @@ def licensing_debug():
 		def boom(key):
 			raise RuntimeError("unreachable")
 
-		licensing._fetch = boom
+		licensing._fetch = boom  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		steps.append({"forced_during_outage": licensing.get_status(force=True)})
 		steps.append({"unforced_during_outage": licensing.get_status()})
 		steps.append({"is_licensed": licensing.is_licensed()})
 	finally:
-		licensing._fetch = real
+		licensing._fetch = real  # nosemgrep: frappe-monkey-patching-not-allowed — test-only mock of this module's own network call, restored in finally
 		frappe.conf.pop(licensing.CONFIG_KEY, None)
 	return steps
 

@@ -95,7 +95,7 @@ def run():
 		public = _dashboard("perm-test-public", "Public", published=True)
 		_dashboard("perm-test-personal", "For one person", published=True, users=[RESTRICTED])
 		# the deny-path rollbacks below must not be able to undo the fixtures
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 
 		# ---- viewer: sees public, not drafts, not the Sales-only board
 		frappe.set_user(VIEWER)
@@ -174,5 +174,5 @@ def run():
 		for slug in (SLUG_DRAFT, SLUG_SALES_ONLY, "perm-test-public", "perm-test-personal", SLUG_BUILDER_OWN):
 			if frappe.db.exists("Lumen Dashboard", slug):
 				frappe.delete_doc("Lumen Dashboard", slug, force=True, ignore_permissions=True)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit — dev/test helper run by hand via bench execute; commits fixtures so the assertions that follow (which roll back on denial) cannot undo them
 	return out

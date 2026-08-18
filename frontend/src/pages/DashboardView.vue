@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import FilterBar from '@/components/FilterBar.vue'
 import NumberCard from '@/components/widgets/NumberCard.vue'
@@ -195,12 +195,35 @@ function widgetClass(widget) {
 let socket
 let debounceTimer
 
+// invalidation events are published to Frappe's per-doctype rooms (scoped, not
+// site-wide), so the viewer joins the rooms for the doctypes its widgets use.
+// Rooms are cheap: joining is a name, and the server re-checks read permission
+// on every widget load regardless.
+const subscribedDoctypes = new Set()
+function subscribeDoctypes() {
+  if (!socket) return
+  const wanted = new Set()
+  for (const w of dashboard.data?.widgets || []) {
+    const q = w.query || {}
+    if (q.doctype) wanted.add(q.doctype)
+    if (q.parent_doctype) wanted.add(q.parent_doctype)
+  }
+  for (const dt of wanted) {
+    if (!subscribedDoctypes.has(dt)) {
+      socket.emit('doctype_subscribe', dt)
+      subscribedDoctypes.add(dt)
+    }
+  }
+}
+
 onMounted(() => {
   socket = getSocket()
   socket.on('connect', () => {
     liveConnected.value = true
     socketTimedOut.value = false
     clearTimeout(socketTimeoutTimer)
+    subscribedDoctypes.clear() // rooms don't survive a reconnect
+    subscribeDoctypes()
   })
   socket.on('disconnect', () => (liveConnected.value = false))
   if (socket.connected) liveConnected.value = true
@@ -208,8 +231,12 @@ onMounted(() => {
   socket.on('lumen_reports:invalidate', onInvalidate)
 })
 
+// the dashboard definition arrives async — subscribe once its widgets are known
+watch(() => dashboard.data, () => subscribeDoctypes())
+
 onBeforeUnmount(() => {
   socket?.off('lumen_reports:invalidate', onInvalidate)
+  for (const dt of subscribedDoctypes) socket?.emit('doctype_unsubscribe', dt)
   clearTimeout(debounceTimer)
   clearTimeout(socketTimeoutTimer)
 })
