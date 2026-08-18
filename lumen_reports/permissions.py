@@ -33,7 +33,8 @@ def _is_manager(user) -> bool:
 	return user == "Administrator" or bool(MANAGER_ROLES & set(frappe.get_roles(user)))
 
 
-def get_permission_query_conditions(user=None):
+def get_permission_query_conditions(user=None, doctype=None):
+	# `doctype` is passed by newer Frappe releases; accepted for forward compat
 	user = user or frappe.session.user
 	if _is_manager(user):
 		return None
@@ -72,7 +73,9 @@ def get_permission_query_conditions(user=None):
 	return f"({own} or {published})"
 
 
-def has_permission(doc, ptype="read", user=None):
+def has_permission(doc, ptype="read", user=None, debug=False, **kwargs):
+	# Frappe v15/v16 call this hook with debug=; **kwargs absorbs anything a
+	# future release adds so a signature change can never take dashboards down
 	user = user or frappe.session.user
 	if _is_manager(user):
 		return True

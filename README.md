@@ -72,7 +72,7 @@ business, built on the doctypes you already have.
 
 ## Requirements
 
-- Frappe Framework **v15**
+- Frappe Framework **v15** or **v16**
 - Works alongside ERPNext, or on any custom app — Lumen reads whatever doctypes exist
 - Ask AI is optional and needs your own Google Gemini API key
 

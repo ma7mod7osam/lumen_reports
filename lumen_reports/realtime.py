@@ -57,8 +57,10 @@ def _build_registry() -> dict:
 	return registry
 
 
-def notify_doc_change(doc, method=None):
-	"""doc_events hook on every doctype (on_change / after_delete)."""
+def notify_doc_change(doc, method=None, *args, **kwargs):
+	"""doc_events hook on every doctype (on_change / after_delete).
+	Extra args tolerated so a hook-signature change in a future Frappe
+	can never break every document save on the site."""
 	if doc.doctype in IGNORED_DOCTYPES or doc.doctype.startswith("Lumen "):
 		return
 	if frappe.flags.in_migrate or frappe.flags.in_install or frappe.flags.in_patch:

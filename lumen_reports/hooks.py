@@ -5,6 +5,7 @@ app_description = "Beautiful, fast, live-updating dashboards and reports for Fra
 app_email = "mhusam.b@gmail.com"
 app_license = "Proprietary"
 app_logo_url = "/assets/lumen_reports/logo/svg/app-icon.svg"
+required_apps = []  # ERPNext optional; supports Frappe v15 and v16 (see pyproject.toml)
 
 # Apps
 # ------------------
