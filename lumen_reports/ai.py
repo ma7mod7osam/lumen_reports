@@ -1178,6 +1178,11 @@ DEFAULT_SIZES = {
 	"Heatmap": {"w": 12, "h": 5},
 	"Tree Report": {"w": 12, "h": 7},
 	"Table": {"w": 12, "h": 5},
+	# layout elements: full-width furniture that gets its own row
+	"Heading": {"w": 12, "h": 1},
+	"Text": {"w": 4, "h": 3},
+	"Divider": {"w": 12, "h": 1},
+	"Image": {"w": 4, "h": 4},
 	"default": {"w": 6, "h": 5},
 }
 

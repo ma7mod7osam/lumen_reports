@@ -9,6 +9,11 @@ const routes = [
   {
     path: '/new',
     name: 'DashboardNew',
+    component: () => import('@/pages/DashboardNew.vue'),
+  },
+  {
+    path: '/new/blank',
+    name: 'DashboardBlank',
     component: () => import('@/pages/DashboardBuilder.vue'),
   },
   {

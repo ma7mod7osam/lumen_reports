@@ -1,6 +1,12 @@
 <template>
   <!-- renders a widget from its query via preview_query (works for unsaved widgets) -->
-  <div v-if="widget.widget_type === 'Number Card'" class="panel kpi" :class="{ err: !!error }">
+  <StaticBody
+    v-if="isStatic(widget.widget_type)"
+    :widget-type="widget.widget_type"
+    :style="widget.style || {}"
+  />
+
+  <div v-else-if="widget.widget_type === 'Number Card'" class="panel kpi" :class="{ err: !!error }">
     <template v-if="loading && !result">
       <div class="skel" style="height: 38px; width: 38px; border-radius: 11px"></div>
       <div>
@@ -30,6 +36,8 @@ import WidgetCard from '@/components/WidgetCard.vue'
 import ChartBody from '@/components/widgets/ChartBody.vue'
 import TableBody from '@/components/widgets/TableBody.vue'
 import NumberBody from '@/components/widgets/NumberBody.vue'
+import StaticBody from '@/components/widgets/StaticBody.vue'
+import { isStatic } from '@/lib/widgetTypes'
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -44,9 +52,10 @@ watch(
   () => props.widget.query,
   async () => {
     const mySeq = ++seq
-    // a widget fresh off the palette has no data source yet — show the shell
-    // quietly instead of firing a query that can only fail
-    if (!props.widget.query?.doctype) {
+    // a layout element has nothing to fetch, and a widget fresh off the palette
+    // has no data source yet — show the shell quietly instead of firing a query
+    // that can only fail
+    if (isStatic(props.widget.widget_type) || !props.widget.query?.doctype) {
       result.value = null
       error.value = null
       loading.value = false

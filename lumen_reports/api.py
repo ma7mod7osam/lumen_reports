@@ -66,6 +66,7 @@ def get_dashboard(slug: str):
 		"can_edit": doc.has_permission("write"),
 		"layout": frappe.parse_json(doc.layout_json or "[]"),
 		"filters": frappe.parse_json(doc.filters_json or "[]"),
+		"theme": frappe.parse_json(doc.theme_json or "{}"),
 		"widgets": [
 			{
 				"widget_id": w.widget_id,
@@ -470,7 +471,7 @@ def save_dashboard(payload: str | dict):
 
 	payload: {name?, title, slug, description, auto_refresh, is_published,
 	          widgets: [{widget_id, title, widget_type, query, style, linked_filters}],
-	          layout: [{widget_id, x, y, w, h}], filters: [...]}
+	          layout: [{widget_id, x, y, w, h}], filters: [...], theme: {...}}
 	"""
 	licensing.require_license()
 	data = frappe.parse_json(payload)
@@ -487,6 +488,7 @@ def save_dashboard(payload: str | dict):
 	doc.is_published = 1 if data.get("is_published") else 0
 	doc.layout_json = json.dumps(data.get("layout") or [])
 	doc.filters_json = json.dumps(data.get("filters") or [])
+	doc.theme_json = json.dumps(data.get("theme") or {})
 
 	# audience: which roles / which specific people may see this once published
 	doc.set("visible_to_roles", [])

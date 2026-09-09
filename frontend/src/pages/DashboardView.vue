@@ -1,5 +1,8 @@
 <template>
-  <div class="mx-auto max-w-7xl px-6 py-8">
+  <!-- the dashboard's own theme paints the page it lives on, so a board can
+       look nothing like the one next to it -->
+  <ThemeScope :theme="dashboard.data?.theme" paint class="page">
+    <div class="mx-auto max-w-7xl px-6 py-8">
     <div v-if="dashboard.loading" class="flex flex-col gap-[18px]">
       <div class="skel" style="height: 34px; width: 280px"></div>
       <div class="skel" style="height: 40px; width: 60%; border-radius: 10px"></div>
@@ -72,8 +75,13 @@
           :class="widgetClass(widget)"
           :style="gridStyle(widget.widget_id)"
         >
+          <StaticBody
+            v-if="isStatic(widget.widget_type)"
+            :widget-type="widget.widget_type"
+            :style="widget.style || {}"
+          />
           <NumberCard
-            v-if="widget.widget_type === 'Number Card'"
+            v-else-if="widget.widget_type === 'Number Card'"
             :slug="slug"
             :widget="widget"
             :filter-values="filterValues"
@@ -103,16 +111,20 @@
         </div>
       </div>
     </template>
-  </div>
+    </div>
+  </ThemeScope>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import FilterBar from '@/components/FilterBar.vue'
+import ThemeScope from '@/components/ThemeScope.vue'
 import NumberCard from '@/components/widgets/NumberCard.vue'
 import ChartWidget from '@/components/widgets/ChartWidget.vue'
 import TableWidget from '@/components/widgets/TableWidget.vue'
+import StaticBody from '@/components/widgets/StaticBody.vue'
+import { isStatic } from '@/lib/widgetTypes'
 import { getSocket } from '@/lib/socket'
 
 const props = defineProps({ slug: { type: String, required: true } })
@@ -187,6 +199,7 @@ function gridStyle(widgetId) {
 
 // widget-type class drives the mobile layout (KPIs 2-up, charts/tables full width)
 function widgetClass(widget) {
+  if (isStatic(widget.widget_type)) return 'w-el'
   if (widget.widget_type === 'Number Card') return 'w-number'
   if (widget.widget_type === 'Table') return 'w-table'
   return 'w-chart'
@@ -250,11 +263,14 @@ function onInvalidate(message) {
 </script>
 
 <style scoped>
+.page {
+  min-height: calc(100vh - 64px);
+}
 .lumen-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   grid-auto-rows: 64px;
-  gap: 18px;
+  gap: var(--grid-gap, 18px);
 }
 
 @media (max-width: 768px) {

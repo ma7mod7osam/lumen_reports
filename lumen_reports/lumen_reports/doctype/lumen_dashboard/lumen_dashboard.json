@@ -17,7 +17,8 @@
   "widgets",
   "section_config",
   "layout_json",
-  "filters_json"
+  "filters_json",
+  "theme_json"
  ],
  "fields": [
   {
@@ -102,6 +103,12 @@
    "fieldname": "filters_json",
    "fieldtype": "JSON",
    "label": "Dashboard Filters"
+  },
+  {
+   "description": "Look of this dashboard: {preset, brand, card, radius, density, font, surface}",
+   "fieldname": "theme_json",
+   "fieldtype": "JSON",
+   "label": "Theme"
   }
  ],
  "index_web_pages_for_search": 0,

@@ -67,6 +67,12 @@
 .lbtn.primary:hover {
   background: var(--blue-600);
 }
+/* a toolbar button whose panel is currently open */
+.lbtn.on {
+  background: color-mix(in srgb, var(--blue) 10%, var(--panel));
+  border-color: color-mix(in srgb, var(--blue) 40%, var(--border-2));
+  color: var(--blue);
+}
 .lbtn.danger {
   color: var(--danger);
 }

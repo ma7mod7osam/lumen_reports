@@ -21,16 +21,23 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
       </button>
 
-      <span class="savestate" :class="saveState">
-        <svg v-if="saveState === 'saved'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
-        <svg v-else-if="saveState === 'saving'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity="0.3" /><path d="M21 12a9 9 0 0 0-9-9" /></svg>
-        <svg v-else-if="saveState === 'error'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
+      <span class="savestate" :class="saveTone">
+        <svg v-if="saveTone === 'saved'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
+        <svg v-else-if="saveTone === 'saving'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity="0.3" /><path d="M21 12a9 9 0 0 0-9-9" /></svg>
+        <svg v-else-if="saveTone === 'error'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
         <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" /></svg>
         {{ saveStateLabel }}
       </span>
 
       <span class="vsep"></span>
 
+      <button class="lbtn" :class="{ on: showTheme }" @click="toggleThemePanel">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="13.5" cy="6.5" r="1.4" /><circle cx="17.5" cy="10.5" r="1.4" /><circle cx="6.5" cy="12.5" r="1.4" /><circle cx="8.5" cy="7.5" r="1.4" />
+          <path d="M12 2a10 10 0 1 0 0 20c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.5-1.1-.3-.3-.4-.7-.4-1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.7-10-8.7Z" />
+        </svg>
+        Theme
+      </button>
       <button class="lbtn" @click="showSettings = true">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
         Settings
@@ -58,10 +65,10 @@
     <div v-else class="sbody">
       <!-- ===== insert rail ===== -->
       <div class="srail">
-        <div class="rail-eyebrow">Insert</div>
+        <div class="rail-eyebrow">Charts</div>
         <div class="rail-grid">
           <button
-            v-for="t in PALETTE"
+            v-for="t in CHART_PALETTE"
             :key="t.value"
             class="rail-tile"
             :title="'Add ' + t.label"
@@ -71,6 +78,21 @@
             <span>{{ t.label }}</span>
           </button>
         </div>
+
+        <div class="rail-eyebrow">Elements</div>
+        <div class="rail-grid">
+          <button
+            v-for="t in ELEMENT_PALETTE"
+            :key="t.value"
+            class="rail-tile"
+            :title="'Add ' + t.label"
+            @click="addFromPalette(t.value, t.label)"
+          >
+            <ElementIcon :type="t.value" :size="16" />
+            <span>{{ t.label }}</span>
+          </button>
+        </div>
+
         <button class="rail-ai" @click="openAi()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /></svg>
           Describe it instead
@@ -78,7 +100,7 @@
       </div>
 
       <!-- ===== canvas ===== -->
-      <div class="scanvas" @pointerdown.self="deselect">
+      <ThemeScope :theme="settings.theme" paint class="scanvas" @pointerdown.self="deselect">
         <!-- empty state -->
         <div v-if="!widgets.length" class="empty panel" style="padding: 80px 20px; border-style: dashed" @pointerdown.stop>
           <div class="ic">
@@ -119,10 +141,13 @@
             </div>
           </div>
         </div>
-      </div>
+      </ThemeScope>
 
       <!-- ===== inspector ===== -->
-      <div v-if="selectedWidget" class="sinspector">
+      <div v-if="showTheme" class="sinspector">
+        <ThemePanel :theme="settings.theme" @apply="applyTheme" @close="showTheme = false" />
+      </div>
+      <div v-else-if="selectedWidget" class="sinspector">
         <WidgetInspector
           :widget="selectedWidget"
           @apply="applyInspector"
@@ -157,8 +182,13 @@ import { call } from 'frappe-ui'
 import BuilderWidget from '@/components/builder/BuilderWidget.vue'
 import WidgetInspector from '@/components/builder/WidgetInspector.vue'
 import SettingsModal from '@/components/builder/SettingsModal.vue'
+import ThemePanel from '@/components/builder/ThemePanel.vue'
 import AiAssist from '@/components/builder/AiAssist.vue'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
+import ElementIcon from '@/components/widgets/ElementIcon.vue'
+import ThemeScope from '@/components/ThemeScope.vue'
+import { CHART_PALETTE, ELEMENT_PALETTE, defaultSize, defaultStyle, isStatic } from '@/lib/widgetTypes'
+import { DEFAULT_THEME } from '@/lib/dashboardTheme'
 
 const props = defineProps({ slug: { type: String, default: '' } })
 const router = useRouter()
@@ -167,28 +197,6 @@ const isNew = computed(() => !props.slug)
 const GAP = 18
 const ROW_H = 64
 const COLS = 12
-
-const PALETTE = [
-  { label: 'Number', value: 'Number Card' },
-  { label: 'Gauge', value: 'Gauge' },
-  { label: 'Sparkline', value: 'Sparkline' },
-  { label: 'Bar', value: 'Bar Chart' },
-  { label: 'Stacked', value: 'Stacked Bar' },
-  { label: 'Ranked', value: 'Horizontal Bar' },
-  { label: 'Line', value: 'Line Chart' },
-  { label: 'Area', value: 'Area Chart' },
-  { label: 'Waterfall', value: 'Waterfall' },
-  { label: 'Progress', value: 'Progress Bars' },
-  { label: 'Donut', value: 'Donut Chart' },
-  { label: 'Pie', value: 'Pie Chart' },
-  { label: 'Rings', value: 'Rings' },
-  { label: 'Radar', value: 'Radar' },
-  { label: 'Funnel', value: 'Funnel' },
-  { label: 'Scatter', value: 'Scatter' },
-  { label: 'Heatmap', value: 'Heatmap' },
-  { label: 'Tree', value: 'Tree Report' },
-  { label: 'Table', value: 'Table' },
-]
 
 const settings = reactive({
   name: null,
@@ -200,6 +208,7 @@ const settings = reactive({
   visible_to_roles: [],
   visible_to_users: [],
   filters: [],
+  theme: { ...DEFAULT_THEME },
 })
 const widgets = ref([])
 const layout = reactive({}) // widget_id -> {x,y,w,h}
@@ -207,6 +216,7 @@ const fieldsByDoctype = reactive({}) // doctype -> fields payload
 const loadError = ref(null)
 
 const showSettings = ref(false)
+const showTheme = ref(false)
 const aiOpen = ref(false)
 const aiWidget = ref(null)
 const selectedId = ref(null)
@@ -214,6 +224,10 @@ const selectedId = ref(null)
 const selectedWidget = computed(
   () => widgets.value.find((w) => w.widget_id === selectedId.value) || null
 )
+
+function widgetById(id) {
+  return widgets.value.find((w) => w.widget_id === id) || null
+}
 
 onMounted(async () => {
   window.addEventListener('keydown', onKeydown)
@@ -234,6 +248,7 @@ onMounted(async () => {
     settings.visible_to_roles = d.visible_to_roles || []
     settings.visible_to_users = d.visible_to_users || []
     settings.filters = d.filters || []
+    settings.theme = { ...DEFAULT_THEME, ...(d.theme || {}) }
     widgets.value = d.widgets
     for (const item of d.layout || []) {
       layout[item.widget_id] = { x: item.x, y: item.y, w: item.w, h: item.h }
@@ -277,19 +292,6 @@ const filterFields = computed(() => {
 
 // ---------- widget CRUD ----------
 
-const DEFAULT_SIZES = {
-  'Number Card': { w: 3, h: 2 },
-  Table: { w: 12, h: 5 },
-  Sparkline: { w: 3, h: 3 },
-  Gauge: { w: 3, h: 3 },
-  Rings: { w: 4, h: 4 },
-  Radar: { w: 4, h: 5 },
-  'Progress Bars': { w: 4, h: 4 },
-  Heatmap: { w: 12, h: 5 },
-  'Tree Report': { w: 12, h: 7 },
-  default: { w: 6, h: 5 },
-}
-
 // the doctype most of this board is built on — a new widget starts there
 const dominantDoctype = computed(() => {
   const counts = {}
@@ -302,20 +304,23 @@ const dominantDoctype = computed(() => {
 
 function addFromPalette(type, label) {
   const id = 'w' + Math.random().toString(36).slice(2, 8)
-  const size = DEFAULT_SIZES[type] || DEFAULT_SIZES.default
-  const query = dominantDoctype.value
-    ? { doctype: dominantDoctype.value, aggregate: { function: 'count' } }
-    : {}
+  const element = isStatic(type)
+  // a layout element carries content, not a query; a data widget starts on the
+  // doctype the rest of the board already uses so it renders something at once
+  const query = element || !dominantDoctype.value
+    ? {}
+    : { doctype: dominantDoctype.value, aggregate: { function: 'count' } }
   widgets.value.push({
     widget_id: id,
     title: label,
     widget_type: type,
     query,
-    style: {},
+    style: defaultStyle(type),
     linked_filters: {},
   })
-  layout[id] = { x: 0, y: nextRow(), ...size }
+  layout[id] = { x: 0, y: nextRow(), ...defaultSize(type) }
   selectedId.value = id
+  showTheme.value = false
 }
 
 function applyInspector(config) {
@@ -329,6 +334,17 @@ function applyInspector(config) {
   loadFields(config.query?.doctype)
 }
 
+function toggleThemePanel() {
+  showTheme.value = !showTheme.value
+  // the theme panel and the widget inspector share the dock, so opening one
+  // puts the other away rather than fighting over the space
+  if (showTheme.value) selectedId.value = null
+}
+
+function applyTheme(next) {
+  Object.assign(settings.theme, next)
+}
+
 function openAi(widget = null) {
   aiWidget.value = widget
   aiOpen.value = true
@@ -338,9 +354,8 @@ function onAiAdd(configs) {
   aiOpen.value = false
   for (const config of configs) {
     const id = 'ai' + Math.random().toString(36).slice(2, 8)
-    const size = DEFAULT_SIZES[config.widget_type] || DEFAULT_SIZES.default
     widgets.value.push({ ...config, widget_id: id, linked_filters: {} })
-    layout[id] = { x: 0, y: nextRow(), ...size }
+    layout[id] = { x: 0, y: nextRow(), ...defaultSize(config.widget_type) }
     loadFields(config.query?.parent_doctype || config.query?.doctype)
   }
 }
@@ -362,6 +377,7 @@ function duplicateWidget(widget) {
   widgets.value.push({ ...JSON.parse(JSON.stringify(widget)), widget_id: id })
   layout[id] = { x: source.x, y: nextRow(), w: source.w, h: source.h }
   selectedId.value = id
+  showTheme.value = false
 }
 
 function removeWidget(widgetId) {
@@ -392,6 +408,7 @@ function isTyping(event) {
 
 function onKeydown(event) {
   if (aiOpen.value || showSettings.value) return
+  if (showTheme.value && event.key !== 'Escape') return
   const mod = event.ctrlKey || event.metaKey
   if (mod && !event.shiftKey && event.key.toLowerCase() === 'z') {
     if (isTyping(event)) return
@@ -410,7 +427,8 @@ function onKeydown(event) {
     event.preventDefault()
     removeWidget(selectedId.value)
   } else if (event.key === 'Escape') {
-    deselect()
+    if (showTheme.value) showTheme.value = false
+    else deselect()
   }
 }
 
@@ -435,6 +453,7 @@ function serialize() {
       visible_to_roles: settings.visible_to_roles,
       visible_to_users: settings.visible_to_users,
       filters: settings.filters,
+      theme: settings.theme,
     },
   })
 }
@@ -509,6 +528,7 @@ function itemStyle(widgetId) {
 
 function onWidgetPointerDown(event, widgetId) {
   selectedId.value = widgetId
+  showTheme.value = false // picking a widget hands the dock back to the inspector
   beginPointer(event, widgetId, 'move')
 }
 
@@ -541,8 +561,10 @@ function onPointerMove(event) {
     item.x = clamp(a.orig.x + dCols, 0, COLS - item.w)
     item.y = Math.max(0, a.orig.y + dRows)
   } else {
+    // a heading or a rule is allowed to be one row tall; a chart is not
+    const minRows = isStatic(widgetById(a.id)?.widget_type) ? 1 : 2
     item.w = clamp(a.orig.w + dCols, 2, COLS - item.x)
-    item.h = Math.max(2, a.orig.h + dRows)
+    item.h = Math.max(minRows, a.orig.h + dRows)
   }
 }
 
@@ -575,10 +597,18 @@ let saveSeq = 0
 
 const dirty = computed(() => serialize() !== lastSaved.value)
 
+// what the indicator actually shows. Undoing back to the saved state leaves
+// saveState on 'dirty' while nothing differs any more, so the live comparison
+// wins over the last thing that happened
+const saveTone = computed(() => {
+  if (saveState.value === 'saving' || saveState.value === 'error') return saveState.value
+  return dirty.value ? 'dirty' : 'saved'
+})
+
 const saveStateLabel = computed(() => {
-  if (saveState.value === 'saving') return 'Saving…'
-  if (saveState.value === 'error') return 'Save failed'
-  if (saveState.value === 'saved' && !dirty.value) return 'Saved'
+  if (saveTone.value === 'saving') return 'Saving…'
+  if (saveTone.value === 'error') return 'Save failed'
+  if (saveTone.value === 'saved') return 'Saved'
   return 'Unsaved changes'
 })
 
@@ -623,6 +653,7 @@ function buildPayload() {
     visible_to_roles: settings.visible_to_roles || [],
     visible_to_users: settings.visible_to_users || [],
     filters: settings.filters.filter((f) => f.name),
+    theme: settings.theme || {},
     widgets: widgets.value.map((w) => ({
       widget_id: w.widget_id,
       title: w.title,
@@ -883,7 +914,7 @@ function exit() {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   grid-auto-rows: 64px;
-  gap: 18px;
+  gap: var(--grid-gap, 18px);
   border-radius: 16px;
 }
 .builder-item {
@@ -896,7 +927,7 @@ function exit() {
 .builder-item.selected > :first-child {
   outline: 2px solid var(--blue);
   outline-offset: 1px;
-  border-radius: 16px;
+  border-radius: var(--panel-radius, 16px);
 }
 
 @media (max-width: 900px) {

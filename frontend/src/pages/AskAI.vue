@@ -330,6 +330,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { call } from 'frappe-ui'
 import ChartBody from '@/components/widgets/ChartBody.vue'
 import ChartVariants from '@/components/widgets/ChartVariants.vue'
@@ -386,10 +387,18 @@ function kpiIndex(i) {
   return n
 }
 
+const route = useRoute()
+
 onMounted(async () => {
   applyStatus(await call('lumen_reports.ai.get_ai_status'))
   const list = await call('lumen_reports.api.get_dashboards')
   dashboards.value = list.dashboards || []
+  // arriving from the create screen with a description already typed
+  const seeded = (route.query.q || '').toString().trim()
+  if (seeded) {
+    question.value = seeded
+    if (status.value?.configured) ask()
+  }
 })
 
 function applyStatus(next) {

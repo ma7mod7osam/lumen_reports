@@ -6,7 +6,7 @@
         v-model="form.title"
         class="ins-title"
         type="text"
-        placeholder="Widget title"
+        :placeholder="isElement ? 'Block name (not shown)' : 'Widget title'"
       />
       <button class="ins-x" title="Close (Esc)" @click="$emit('close')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
@@ -16,8 +16,21 @@
     <div class="ins-body">
       <!-- type -->
       <div class="ins-sec">
-        <div class="ins-eyebrow">Widget type</div>
-        <div class="flex flex-wrap gap-1.5">
+        <div class="ins-eyebrow">{{ isElement ? 'Element' : 'Widget type' }}</div>
+        <div v-if="isElement" class="flex flex-wrap gap-1.5">
+          <button
+            v-for="t in ELEMENT_PALETTE"
+            :key="t.value"
+            class="typechip"
+            :class="{ on: form.widget_type === t.value }"
+            :title="t.label"
+            @click="setElementType(t.value)"
+          >
+            <ElementIcon :type="t.value" :size="12" />
+            {{ t.label }}
+          </button>
+        </div>
+        <div v-else class="flex flex-wrap gap-1.5">
           <button
             v-for="t in WIDGET_TYPES"
             :key="t.value"
@@ -32,8 +45,86 @@
         </div>
       </div>
 
+      <!-- content: the layout elements carry text and pictures, not queries -->
+      <div v-if="isElement" class="ins-sec">
+        <div class="ins-eyebrow">Content</div>
+
+        <template v-if="form.widget_type === 'Heading'">
+          <div class="lfield">
+            <label>Heading</label>
+            <input type="text" v-model="form.text" placeholder="Section heading" />
+          </div>
+          <div class="lfield">
+            <label>Sub-heading (optional)</label>
+            <input type="text" v-model="form.subtext" placeholder="A line of context" />
+          </div>
+          <div class="lfield">
+            <label>Size</label>
+            <div class="seg" style="width: fit-content">
+              <button :class="{ on: form.level === 1 }" @click="form.level = 1">Large</button>
+              <button :class="{ on: form.level === 2 }" @click="form.level = 2">Medium</button>
+              <button :class="{ on: form.level === 3 }" @click="form.level = 3">Label</button>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="form.widget_type === 'Text'">
+          <div class="lfield">
+            <label>Note</label>
+            <textarea v-model="form.text" rows="5" placeholder="Explain what this section shows, who it is for, or how to read it."></textarea>
+          </div>
+          <div class="lfield">
+            <label>Size</label>
+            <div class="seg" style="width: fit-content">
+              <button :class="{ on: form.size === 'sm' }" @click="form.size = 'sm'">Small</button>
+              <button :class="{ on: form.size === 'md' }" @click="form.size = 'md'">Normal</button>
+              <button :class="{ on: form.size === 'lg' }" @click="form.size = 'lg'">Lead</button>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="form.widget_type === 'Divider'">
+          <div class="lfield">
+            <label>Label (optional)</label>
+            <input type="text" v-model="form.text" placeholder="e.g. Second half" />
+          </div>
+        </template>
+
+        <template v-else>
+          <div class="lfield">
+            <label>Image URL</label>
+            <input type="text" v-model="form.url" placeholder="/files/logo.png" spellcheck="false" />
+          </div>
+          <div class="lfield">
+            <label>Fit</label>
+            <div class="seg" style="width: fit-content">
+              <button :class="{ on: form.fit === 'contain' }" @click="form.fit = 'contain'">Fit inside</button>
+              <button :class="{ on: form.fit === 'cover' }" @click="form.fit = 'cover'">Fill</button>
+            </div>
+          </div>
+        </template>
+
+        <div v-if="form.widget_type !== 'Divider'" class="lfield">
+          <label>Alignment</label>
+          <div class="seg" style="width: fit-content">
+            <button :class="{ on: form.align === 'left' }" @click="form.align = 'left'">Left</button>
+            <button :class="{ on: form.align === 'center' }" @click="form.align = 'center'">Center</button>
+            <button :class="{ on: form.align === 'right' }" @click="form.align = 'right'">Right</button>
+          </div>
+        </div>
+
+        <label
+          v-if="form.widget_type === 'Text' || form.widget_type === 'Image'"
+          class="flex cursor-pointer items-center gap-2 text-[12.5px]"
+          style="color: var(--ink-2)"
+        >
+          <input type="checkbox" v-model="form.framed" />
+          Put it on a card
+        </label>
+      </div>
+
       <!-- data source -->
-      <div class="ins-sec">
+      <div v-if="!isElement" class="ins-sec">
         <div class="ins-eyebrow">Data</div>
         <div class="lfield">
           <label>Source</label>
@@ -223,7 +314,7 @@
       </div>
 
       <!-- appearance -->
-      <div v-if="form.widget_type === 'Number Card' || hasAccent" class="ins-sec">
+      <div v-if="!isElement && (form.widget_type === 'Number Card' || hasAccent)" class="ins-sec">
         <div class="ins-eyebrow">Appearance</div>
         <div v-if="form.widget_type === 'Number Card'" class="lfield">
           <label>Tint</label>
@@ -256,7 +347,7 @@
       </div>
 
       <!-- widget filters -->
-      <div class="ins-sec">
+      <div v-if="!isElement" class="ins-sec">
         <div class="ins-eyebrow">Widget filters</div>
         <div class="flex flex-col gap-2">
           <div v-for="(f, i) in form.filters" :key="i" class="flex items-center gap-1.5">
@@ -284,6 +375,10 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
         <span>Pick a source{{ needsGroup ? ' and a breakdown' : '' }} to apply</span>
       </template>
+      <template v-else-if="isElement">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
+        <span>This block carries no data, so it never loads</span>
+      </template>
       <template v-else>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
         <span>Changes apply live on the canvas</span>
@@ -296,7 +391,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { chartPalette, themeVersion } from '@/lib/theme'
+import { ELEMENT_PALETTE, defaultStyle, isStatic } from '@/lib/widgetTypes'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
+import ElementIcon from '@/components/widgets/ElementIcon.vue'
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -396,6 +493,15 @@ const form = reactive({
   sort_order: 'desc',
   limit: 10,
   filters: [],
+  // layout elements
+  text: '',
+  subtext: '',
+  level: 1,
+  align: 'left',
+  size: 'md',
+  url: '',
+  fit: 'contain',
+  framed: false,
 })
 
 // filters the panel doesn't render (base scoping via a related ref) —
@@ -436,6 +542,15 @@ function syncFromWidget() {
   form.limit = q.limit || 10
   form.filters = (q.filters || []).filter((f) => typeof f[0] === 'string').map((f) => [...f])
   preservedFilters.value = (q.filters || []).filter((f) => typeof f?.[0] !== 'string')
+  const s = w.style || {}
+  form.text = s.text || ''
+  form.subtext = s.subtext || ''
+  form.level = Number(s.level) || 1
+  form.align = s.align || 'left'
+  form.size = s.size || 'md'
+  form.url = s.url || ''
+  form.fit = s.fit || 'contain'
+  form.framed = !!s.framed
   lastApplied = ''
   // release the guard after the watchers triggered by this sync have run
   setTimeout(() => {
@@ -540,7 +655,8 @@ function keyToRef(key) {
   return { field, via: { link_field: linkPart, doctype } }
 }
 
-const needsGroup = computed(() => !NO_GROUP_TYPES.includes(form.widget_type))
+const isElement = computed(() => isStatic(form.widget_type))
+const needsGroup = computed(() => !isElement.value && !NO_GROUP_TYPES.includes(form.widget_type))
 const isScatter = computed(() => form.widget_type === 'Scatter')
 const isRings = computed(() => form.widget_type === 'Rings')
 const isTree = computed(() => form.widget_type === 'Tree Report')
@@ -556,6 +672,7 @@ const group2Optional = computed(
 )
 
 const canApply = computed(() => {
+  if (isElement.value) return true // nothing to validate: no query to run
   if (['Heatmap', 'Stacked Bar'].includes(form.widget_type) && !selectedGroup2.value) return false
   if (isScatter.value && form.y_function !== 'count' && !form.y_field) return false
   if (isScatter.value && form.size_function && form.size_function !== 'count' && !form.size_field) return false
@@ -616,7 +733,39 @@ function buildQuery() {
   return query
 }
 
+function setElementType(type) {
+  if (form.widget_type === type) return
+  form.widget_type = type
+  // carry the text across (a heading often becomes a note), but reset the
+  // knobs that mean nothing on the new element
+  Object.assign(form, { level: 1, size: 'md', fit: 'contain' }, defaultStyle(type), {
+    text: form.text,
+  })
+}
+
+function elementStyle() {
+  const type = form.widget_type
+  if (type === 'Heading') {
+    const style = { text: form.text, level: form.level, align: form.align }
+    if (form.subtext) style.subtext = form.subtext
+    return style
+  }
+  if (type === 'Text') {
+    return { text: form.text, align: form.align, size: form.size, framed: !!form.framed }
+  }
+  if (type === 'Divider') return { text: form.text }
+  return { url: form.url, fit: form.fit, align: form.align, framed: !!form.framed }
+}
+
 function buildConfig() {
+  if (isElement.value) {
+    return {
+      title: form.title || form.widget_type,
+      widget_type: form.widget_type,
+      query: {},
+      style: elementStyle(),
+    }
+  }
   let style = {}
   if (form.widget_type === 'Number Card') style = { tint: form.tint }
   else if (usesTarget.value) {
