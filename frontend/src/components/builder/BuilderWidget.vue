@@ -44,6 +44,14 @@ watch(
   () => props.widget.query,
   async () => {
     const mySeq = ++seq
+    // a widget fresh off the palette has no data source yet — show the shell
+    // quietly instead of firing a query that can only fail
+    if (!props.widget.query?.doctype) {
+      result.value = null
+      error.value = null
+      loading.value = false
+      return
+    }
     loading.value = true
     error.value = null
     try {

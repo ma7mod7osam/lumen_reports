@@ -1,105 +1,137 @@
 <template>
-  <div class="mx-auto max-w-7xl px-6 py-8">
-    <!-- builder top bar -->
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <span class="mono" style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue)">
-          {{ isNew ? 'New dashboard' : 'Editing' }}
-        </span>
-        <h1 style="font-size: 26px; font-weight: 800; letter-spacing: -0.03em">
-          {{ settings.title || 'Untitled dashboard' }}
-        </h1>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button class="lbtn" @click="showSettings = true">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-          </svg>
-          Settings
-        </button>
-        <button class="lbtn" @click="openWizard()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          Add widget
-        </button>
-        <button class="lbtn" style="color: var(--blue); border-color: color-mix(in srgb, var(--blue) 35%, var(--border-2))" @click="openAi()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
-            <path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z" />
-          </svg>
-          Ask AI
-        </button>
-        <span style="width: 1px; height: 24px; background: var(--border-2)"></span>
-        <button class="lbtn" @click="cancel">Cancel</button>
-        <button class="lbtn primary" :disabled="saving || !settings.title || !widgets.length" @click="save">
-          {{ saving ? 'Saving…' : 'Save dashboard' }}
-        </button>
+  <div class="studio">
+    <!-- ===== studio toolbar ===== -->
+    <div class="stoolbar">
+      <button class="tbtn" title="Back" @click="exit">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+      </button>
+      <button class="stitle" title="Dashboard settings" @click="showSettings = true">
+        <span>{{ settings.title || 'Untitled dashboard' }}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+      </button>
+      <span v-if="settings.is_published" class="badge b-green"><span class="dot"></span>Published</span>
+      <span v-else class="badge b-amber"><span class="dot"></span>Draft</span>
+
+      <span class="grow"></span>
+
+      <button class="tbtn" title="Undo (Ctrl+Z)" :disabled="!canUndo" @click="undo">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
+      </button>
+      <button class="tbtn" title="Redo (Ctrl+Shift+Z)" :disabled="!canRedo" @click="redo">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
+      </button>
+
+      <span class="savestate" :class="saveState">
+        <svg v-if="saveState === 'saved'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
+        <svg v-else-if="saveState === 'saving'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" opacity="0.3" /><path d="M21 12a9 9 0 0 0-9-9" /></svg>
+        <svg v-else-if="saveState === 'error'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
+        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" /></svg>
+        {{ saveStateLabel }}
+      </span>
+
+      <span class="vsep"></span>
+
+      <button class="lbtn" @click="showSettings = true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
+        Settings
+      </button>
+      <button class="lbtn" style="color: var(--blue); border-color: color-mix(in srgb, var(--blue) 35%, var(--border-2))" @click="openAi()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z" /></svg>
+        Ask AI
+      </button>
+      <button v-if="settings.name" class="lbtn" @click="preview">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+        Preview
+      </button>
+      <button class="lbtn primary" :disabled="primaryDisabled" @click="primaryAction">
+        {{ primaryLabel }}
+      </button>
+    </div>
+
+    <div v-if="loadError" class="mx-auto max-w-3xl px-6 py-10">
+      <div class="empty panel err">
+        <div style="font-weight: 700; color: var(--ink)">Couldn't load dashboard</div>
+        <div style="font-size: 12.5px">{{ loadError }}</div>
       </div>
     </div>
 
-    <div v-if="loadError" class="empty panel err">
-      <div style="font-weight: 700; color: var(--ink)">Couldn't load dashboard</div>
-      <div style="font-size: 12.5px">{{ loadError }}</div>
-    </div>
-
-    <!-- empty state -->
-    <div v-else-if="!widgets.length" class="empty panel" style="padding: 80px 20px; border-style: dashed">
-      <div class="ic">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
-          <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" />
-          <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" />
-          <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" />
-        </svg>
+    <div v-else class="sbody">
+      <!-- ===== insert rail ===== -->
+      <div class="srail">
+        <div class="rail-eyebrow">Insert</div>
+        <div class="rail-grid">
+          <button
+            v-for="t in PALETTE"
+            :key="t.value"
+            class="rail-tile"
+            :title="'Add ' + t.label"
+            @click="addFromPalette(t.value, t.label)"
+          >
+            <ChartIcon :type="t.value" :size="16" />
+            <span>{{ t.label }}</span>
+          </button>
+        </div>
+        <button class="rail-ai" @click="openAi()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /></svg>
+          Describe it instead
+        </button>
       </div>
-      <div style="font-weight: 700; color: var(--ink)">No widgets yet</div>
-      <div style="font-size: 12.5px; margin-bottom: 10px">Add your first widget to start composing</div>
-      <button class="lbtn primary" @click="openWizard()">+ Add widget</button>
-    </div>
 
-    <!-- edit grid -->
-    <div v-else ref="gridEl" class="builder-grid" :style="gridBgStyle">
-      <div
-        v-for="widget in widgets"
-        :key="widget.widget_id"
-        class="builder-item"
-        :class="{ dragging: active?.id === widget.widget_id }"
-        :style="itemStyle(widget.widget_id)"
-      >
-        <BuilderWidget :widget="widget" />
-        <!-- edit overlay -->
-        <div class="overlay" @pointerdown="startDrag($event, widget.widget_id)">
-          <div class="tools" @pointerdown.stop>
-            <button class="tool" title="Edit" @click="openWizard(widget)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-            </button>
-            <button class="tool" title="Modify with AI" style="color: var(--blue)" @click="openAi(widget)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /></svg>
-            </button>
-            <button class="tool" title="Duplicate" @click="duplicateWidget(widget)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
-            </button>
-            <button class="tool danger" title="Remove" @click="removeWidget(widget.widget_id)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
-            </button>
+      <!-- ===== canvas ===== -->
+      <div class="scanvas" @pointerdown.self="deselect">
+        <!-- empty state -->
+        <div v-if="!widgets.length" class="empty panel" style="padding: 80px 20px; border-style: dashed" @pointerdown.stop>
+          <div class="ic">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" /></svg>
+          </div>
+          <div style="font-weight: 700; color: var(--ink)">An empty canvas</div>
+          <div style="font-size: 12.5px; margin-bottom: 10px">Pick an element from the left rail, or describe the dashboard to the AI</div>
+          <button class="lbtn primary" @click="openAi()">Ask AI to draft it</button>
+        </div>
+
+        <!-- edit grid -->
+        <div v-else ref="gridEl" class="builder-grid" :style="gridBgStyle" @pointerdown.self="deselect">
+          <div
+            v-for="widget in widgets"
+            :key="widget.widget_id"
+            class="builder-item"
+            :class="{ dragging: active?.id === widget.widget_id, selected: selectedId === widget.widget_id }"
+            :style="itemStyle(widget.widget_id)"
+          >
+            <BuilderWidget :widget="widget" />
+            <!-- edit overlay: click selects, drag moves -->
+            <div class="overlay" @pointerdown="onWidgetPointerDown($event, widget.widget_id)">
+              <div class="tools" @pointerdown.stop>
+                <button class="tool" title="Modify with AI" style="color: var(--blue)" @click="openAi(widget)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /></svg>
+                </button>
+                <button class="tool" title="Duplicate (Ctrl+D)" @click="duplicateWidget(widget)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
+                </button>
+                <button class="tool danger" title="Remove (Del)" @click="removeWidget(widget.widget_id)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
+                </button>
+              </div>
+            </div>
+            <!-- resize handle -->
+            <div class="rz" @pointerdown.stop.prevent="startResize($event, widget.widget_id)">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M9 1v8H1z" opacity=".5" /></svg>
+            </div>
           </div>
         </div>
-        <!-- resize handle -->
-        <div class="rz" @pointerdown.stop.prevent="startResize($event, widget.widget_id)">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M9 1v8H1z" opacity=".5" /></svg>
-        </div>
+      </div>
+
+      <!-- ===== inspector ===== -->
+      <div v-if="selectedWidget" class="sinspector">
+        <WidgetInspector
+          :widget="selectedWidget"
+          @apply="applyInspector"
+          @close="deselect"
+        />
       </div>
     </div>
   </div>
 
-  <WidgetWizard
-    v-if="wizardOpen"
-    :widget="wizardWidget"
-    @close="wizardOpen = false"
-    @save="onWizardSave"
-  />
   <AiAssist
     v-if="aiOpen"
     :edit-widget="aiWidget"
@@ -119,13 +151,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { call } from 'frappe-ui'
 import BuilderWidget from '@/components/builder/BuilderWidget.vue'
-import WidgetWizard from '@/components/builder/WidgetWizard.vue'
+import WidgetInspector from '@/components/builder/WidgetInspector.vue'
 import SettingsModal from '@/components/builder/SettingsModal.vue'
 import AiAssist from '@/components/builder/AiAssist.vue'
+import ChartIcon from '@/components/widgets/ChartIcon.vue'
 
 const props = defineProps({ slug: { type: String, default: '' } })
 const router = useRouter()
@@ -134,6 +167,28 @@ const isNew = computed(() => !props.slug)
 const GAP = 18
 const ROW_H = 64
 const COLS = 12
+
+const PALETTE = [
+  { label: 'Number', value: 'Number Card' },
+  { label: 'Gauge', value: 'Gauge' },
+  { label: 'Sparkline', value: 'Sparkline' },
+  { label: 'Bar', value: 'Bar Chart' },
+  { label: 'Stacked', value: 'Stacked Bar' },
+  { label: 'Ranked', value: 'Horizontal Bar' },
+  { label: 'Line', value: 'Line Chart' },
+  { label: 'Area', value: 'Area Chart' },
+  { label: 'Waterfall', value: 'Waterfall' },
+  { label: 'Progress', value: 'Progress Bars' },
+  { label: 'Donut', value: 'Donut Chart' },
+  { label: 'Pie', value: 'Pie Chart' },
+  { label: 'Rings', value: 'Rings' },
+  { label: 'Radar', value: 'Radar' },
+  { label: 'Funnel', value: 'Funnel' },
+  { label: 'Scatter', value: 'Scatter' },
+  { label: 'Heatmap', value: 'Heatmap' },
+  { label: 'Tree', value: 'Tree Report' },
+  { label: 'Table', value: 'Table' },
+]
 
 const settings = reactive({
   name: null,
@@ -150,17 +205,21 @@ const widgets = ref([])
 const layout = reactive({}) // widget_id -> {x,y,w,h}
 const fieldsByDoctype = reactive({}) // doctype -> fields payload
 const loadError = ref(null)
-const saving = ref(false)
 
-const wizardOpen = ref(false)
-const wizardWidget = ref(null)
 const showSettings = ref(false)
 const aiOpen = ref(false)
 const aiWidget = ref(null)
+const selectedId = ref(null)
+
+const selectedWidget = computed(
+  () => widgets.value.find((w) => w.widget_id === selectedId.value) || null
+)
 
 onMounted(async () => {
+  window.addEventListener('keydown', onKeydown)
   if (isNew.value) {
     showSettings.value = true
+    resetHistory()
     return
   }
   try {
@@ -180,9 +239,18 @@ onMounted(async () => {
       layout[item.widget_id] = { x: item.x, y: item.y, w: item.w, h: item.h }
     }
     widgets.value.forEach((w) => loadFields(w.query?.doctype))
+    resetHistory()
+    lastSaved.value = serialize()
+    saveState.value = 'saved'
   } catch (e) {
     loadError.value = e.messages?.[0] || e.message || String(e)
   }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearTimeout(autosaveTimer)
+  clearTimeout(historyTimer)
 })
 
 async function loadFields(doctype) {
@@ -209,11 +277,6 @@ const filterFields = computed(() => {
 
 // ---------- widget CRUD ----------
 
-function openWizard(widget = null) {
-  wizardWidget.value = widget
-  wizardOpen.value = true
-}
-
 const DEFAULT_SIZES = {
   'Number Card': { w: 3, h: 2 },
   Table: { w: 12, h: 5 },
@@ -227,18 +290,43 @@ const DEFAULT_SIZES = {
   default: { w: 6, h: 5 },
 }
 
-function onWizardSave(config) {
-  wizardOpen.value = false
-  loadFields(config.query.doctype)
-  if (config.widget_id) {
-    const i = widgets.value.findIndex((w) => w.widget_id === config.widget_id)
-    if (i >= 0) widgets.value[i] = { ...widgets.value[i], ...config }
-    return
+// the doctype most of this board is built on — a new widget starts there
+const dominantDoctype = computed(() => {
+  const counts = {}
+  for (const w of widgets.value) {
+    const dt = w.query?.parent_doctype || w.query?.doctype
+    if (dt) counts[dt] = (counts[dt] || 0) + 1
   }
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || ''
+})
+
+function addFromPalette(type, label) {
   const id = 'w' + Math.random().toString(36).slice(2, 8)
-  const size = DEFAULT_SIZES[config.widget_type] || DEFAULT_SIZES.default
-  widgets.value.push({ ...config, widget_id: id, linked_filters: {} })
+  const size = DEFAULT_SIZES[type] || DEFAULT_SIZES.default
+  const query = dominantDoctype.value
+    ? { doctype: dominantDoctype.value, aggregate: { function: 'count' } }
+    : {}
+  widgets.value.push({
+    widget_id: id,
+    title: label,
+    widget_type: type,
+    query,
+    style: {},
+    linked_filters: {},
+  })
   layout[id] = { x: 0, y: nextRow(), ...size }
+  selectedId.value = id
+}
+
+function applyInspector(config) {
+  const w = selectedWidget.value
+  if (!w) return
+  // mutate in place so the inspector doesn't re-sync off its own change
+  w.title = config.title
+  w.widget_type = config.widget_type
+  w.query = config.query
+  w.style = config.style
+  loadFields(config.query?.doctype)
 }
 
 function openAi(widget = null) {
@@ -261,7 +349,7 @@ function onAiApply(config) {
   aiOpen.value = false
   const i = widgets.value.findIndex((w) => w.widget_id === aiWidget.value.widget_id)
   if (i >= 0) {
-    // keep id, layout and linked filters; the AI only reshapes the data spec
+    // replaced object -> the inspector re-syncs from the new reference
     widgets.value[i] = { ...widgets.value[i], ...config }
     loadFields(config.query?.parent_doctype || config.query?.doctype)
   }
@@ -273,11 +361,13 @@ function duplicateWidget(widget) {
   const source = layout[widget.widget_id] || { w: 6, h: 5 }
   widgets.value.push({ ...JSON.parse(JSON.stringify(widget)), widget_id: id })
   layout[id] = { x: source.x, y: nextRow(), w: source.w, h: source.h }
+  selectedId.value = id
 }
 
 function removeWidget(widgetId) {
   widgets.value = widgets.value.filter((w) => w.widget_id !== widgetId)
   delete layout[widgetId]
+  if (selectedId.value === widgetId) selectedId.value = null
 }
 
 function nextRow() {
@@ -286,10 +376,122 @@ function nextRow() {
   return max
 }
 
+function deselect() {
+  selectedId.value = null
+}
+
+// ---------- keyboard ----------
+
+function isTyping(event) {
+  const el = event.target
+  return (
+    el &&
+    (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+  )
+}
+
+function onKeydown(event) {
+  if (aiOpen.value || showSettings.value) return
+  const mod = event.ctrlKey || event.metaKey
+  if (mod && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    if (isTyping(event)) return
+    event.preventDefault()
+    undo()
+  } else if ((mod && event.shiftKey && event.key.toLowerCase() === 'z') || (mod && event.key.toLowerCase() === 'y')) {
+    if (isTyping(event)) return
+    event.preventDefault()
+    redo()
+  } else if (mod && event.key.toLowerCase() === 'd' && selectedWidget.value) {
+    if (isTyping(event)) return
+    event.preventDefault()
+    duplicateWidget(selectedWidget.value)
+  } else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedId.value) {
+    if (isTyping(event)) return
+    event.preventDefault()
+    removeWidget(selectedId.value)
+  } else if (event.key === 'Escape') {
+    deselect()
+  }
+}
+
+// ---------- undo / redo ----------
+
+const history = ref([])
+const histPointer = ref(-1)
+let historyTimer = null
+
+const canUndo = computed(() => histPointer.value > 0)
+const canRedo = computed(() => histPointer.value < history.value.length - 1)
+
+function serialize() {
+  return JSON.stringify({
+    widgets: widgets.value,
+    layout,
+    settings: {
+      title: settings.title,
+      description: settings.description,
+      auto_refresh: settings.auto_refresh,
+      is_published: settings.is_published,
+      visible_to_roles: settings.visible_to_roles,
+      visible_to_users: settings.visible_to_users,
+      filters: settings.filters,
+    },
+  })
+}
+
+function resetHistory() {
+  history.value = [serialize()]
+  histPointer.value = 0
+}
+
+function recordHistory() {
+  const snapshot = serialize()
+  if (snapshot === history.value[histPointer.value]) return
+  history.value.splice(histPointer.value + 1)
+  history.value.push(snapshot)
+  if (history.value.length > 60) history.value.shift()
+  histPointer.value = history.value.length - 1
+}
+
+function restore(snapshot) {
+  const data = JSON.parse(snapshot)
+  widgets.value = data.widgets
+  for (const key of Object.keys(layout)) delete layout[key]
+  Object.assign(layout, data.layout)
+  Object.assign(settings, data.settings)
+  if (selectedId.value && !widgets.value.some((w) => w.widget_id === selectedId.value)) {
+    selectedId.value = null
+  }
+}
+
+function undo() {
+  if (!canUndo.value) return
+  histPointer.value -= 1
+  restore(history.value[histPointer.value])
+}
+
+function redo() {
+  if (!canRedo.value) return
+  histPointer.value += 1
+  restore(history.value[histPointer.value])
+}
+
+// one watcher drives both history and autosave; a restore serializes back to
+// the snapshot it landed on, so recordHistory() sees no change and skips
+watch(
+  [widgets, layout, settings],
+  () => {
+    clearTimeout(historyTimer)
+    historyTimer = setTimeout(recordHistory, 550)
+    queueAutosave()
+  },
+  { deep: true }
+)
+
 // ---------- grid drag & resize ----------
 
 const gridEl = ref(null)
-const active = ref(null) // {id, mode, startX, startY, orig}
+const active = ref(null) // {id, mode, startX, startY, orig, moved}
 
 function cellWidth() {
   const width = gridEl.value?.clientWidth || 1180
@@ -305,10 +507,13 @@ function itemStyle(widgetId) {
   }
 }
 
-function startDrag(event, widgetId) {
+function onWidgetPointerDown(event, widgetId) {
+  selectedId.value = widgetId
   beginPointer(event, widgetId, 'move')
 }
+
 function startResize(event, widgetId) {
+  selectedId.value = widgetId
   beginPointer(event, widgetId, 'resize')
 }
 
@@ -351,48 +556,100 @@ function clamp(v, lo, hi) {
 }
 
 const gridBgStyle = computed(() => ({
-  backgroundImage:
-    'radial-gradient(circle, var(--border-2) 1px, transparent 1px)',
+  backgroundImage: 'radial-gradient(circle, var(--border-2) 1px, transparent 1px)',
   backgroundSize: `${cellWidth() + GAP}px ${ROW_H + GAP}px`,
   backgroundPosition: `-${GAP / 2}px -${GAP / 2}px`,
 }))
 
-// ---------- settings + save ----------
+// ---------- settings, save, autosave ----------
 
 function onSettingsApply(next) {
   Object.assign(settings, next)
   showSettings.value = false
 }
 
-async function save() {
-  saving.value = true
+const saveState = ref('dirty') // saved | saving | dirty | error
+const lastSaved = ref('')
+let autosaveTimer = null
+let saveSeq = 0
+
+const dirty = computed(() => serialize() !== lastSaved.value)
+
+const saveStateLabel = computed(() => {
+  if (saveState.value === 'saving') return 'Saving…'
+  if (saveState.value === 'error') return 'Save failed'
+  if (saveState.value === 'saved' && !dirty.value) return 'Saved'
+  return 'Unsaved changes'
+})
+
+const primaryLabel = computed(() => {
+  if (!settings.name) return 'Save draft'
+  if (!settings.is_published) return 'Publish'
+  return 'Save changes'
+})
+
+const primaryDisabled = computed(() => {
+  if (!settings.title) return true
+  if (settings.is_published && settings.name) return !dirty.value && saveState.value !== 'error'
+  return false
+})
+
+async function primaryAction() {
+  if (settings.name && !settings.is_published) {
+    settings.is_published = true
+  }
+  await persist()
+}
+
+function queueAutosave() {
+  saveState.value = dirty.value ? 'dirty' : saveState.value
+  // drafts save themselves; published dashboards wait for an explicit
+  // "Save changes" so viewers never see a half-finished edit
+  if (!settings.name || settings.is_published) return
+  clearTimeout(autosaveTimer)
+  autosaveTimer = setTimeout(() => {
+    if (dirty.value) persist({ quiet: true })
+  }, 1600)
+}
+
+function buildPayload() {
+  return {
+    name: settings.name,
+    title: settings.title,
+    slug: settings.slug,
+    description: settings.description,
+    auto_refresh: settings.auto_refresh,
+    is_published: settings.is_published,
+    visible_to_roles: settings.visible_to_roles || [],
+    visible_to_users: settings.visible_to_users || [],
+    filters: settings.filters.filter((f) => f.name),
+    widgets: widgets.value.map((w) => ({
+      widget_id: w.widget_id,
+      title: w.title,
+      widget_type: w.widget_type,
+      query: w.query,
+      style: w.style || {},
+      linked_filters: buildLinkedFilters(w),
+    })),
+    layout: widgets.value.map((w) => ({ widget_id: w.widget_id, ...layout[w.widget_id] })),
+  }
+}
+
+async function persist({ quiet = false } = {}) {
+  const seq = ++saveSeq
+  const snapshotAtSave = serialize()
+  saveState.value = 'saving'
   try {
-    const payload = {
-      name: settings.name,
-      title: settings.title,
-      slug: settings.slug,
-      description: settings.description,
-      auto_refresh: settings.auto_refresh,
-      is_published: settings.is_published,
-      visible_to_roles: settings.visible_to_roles || [],
-      visible_to_users: settings.visible_to_users || [],
-      filters: settings.filters.filter((f) => f.name),
-      widgets: widgets.value.map((w) => ({
-        widget_id: w.widget_id,
-        title: w.title,
-        widget_type: w.widget_type,
-        query: w.query,
-        style: w.style || {},
-        linked_filters: buildLinkedFilters(w),
-      })),
-      layout: widgets.value.map((w) => ({ widget_id: w.widget_id, ...layout[w.widget_id] })),
-    }
-    const result = await call('lumen_reports.api.save_dashboard', { payload })
-    router.push({ name: 'DashboardView', params: { slug: result.slug } })
+    const result = await call('lumen_reports.api.save_dashboard', { payload: buildPayload() })
+    if (seq !== saveSeq) return
+    settings.name = settings.name || result.name
+    settings.slug = result.slug
+    lastSaved.value = snapshotAtSave
+    saveState.value = 'saved'
   } catch (e) {
-    alert(e.messages?.[0] || e.message || e)
-  } finally {
-    saving.value = false
+    if (seq !== saveSeq) return
+    saveState.value = 'error'
+    if (!quiet) alert(e.messages?.[0] || e.message || e)
   }
 }
 
@@ -408,10 +665,8 @@ function buildLinkedFilters(widget) {
     if (!f.name) continue
     let applies
     if (f.source === 'child') {
-      // a line-item filter fits a line-grain widget (same child) or its parent
       applies = wbase === f.child_doctype || wbase === f.parent_doctype
     } else if (f.base_doctype) {
-      // a document field fits that document, or a line widget built on it
       applies = wbase === f.base_doctype || wparent === f.base_doctype
     } else {
       applies = fieldnames.has(f.fieldname || f.name) // legacy dashboards
@@ -421,28 +676,244 @@ function buildLinkedFilters(widget) {
   return linked
 }
 
-function cancel() {
-  if (isNew.value) router.push('/')
-  else router.push({ name: 'DashboardView', params: { slug: props.slug } })
+function preview() {
+  if (settings.slug) router.push({ name: 'DashboardView', params: { slug: settings.slug } })
+}
+
+function exit() {
+  if (settings.slug && settings.name) {
+    router.push({ name: 'DashboardView', params: { slug: settings.slug } })
+  } else {
+    router.push('/')
+  }
 }
 </script>
 
 <style scoped>
+.studio {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+}
+.stoolbar {
+  position: sticky;
+  top: 64px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 54px;
+  padding: 0 14px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(160%) blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.grow {
+  flex: 1;
+}
+.vsep {
+  width: 1px;
+  height: 22px;
+  background: var(--border-2);
+  margin: 0 2px;
+}
+.tbtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tbtn:hover:not(:disabled) {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+.tbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.stitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  padding: 5px 9px;
+  border-radius: 9px;
+  max-width: 340px;
+}
+.stitle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stitle svg {
+  color: var(--faint);
+  flex: none;
+}
+.stitle:hover {
+  background: var(--panel-2);
+}
+.savestate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.savestate.saved {
+  color: var(--success);
+}
+.savestate.error {
+  color: var(--danger);
+}
+.savestate.saving svg {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.sbody {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  min-height: 0;
+}
+.srail {
+  position: sticky;
+  top: 118px;
+  align-self: flex-start;
+  width: 208px;
+  flex: none;
+  max-height: calc(100vh - 118px);
+  overflow-y: auto;
+  padding: 14px 12px 20px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  min-height: calc(100vh - 118px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rail-eyebrow {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 500;
+}
+.rail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.rail-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 58px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--panel);
+  color: var(--ink-2);
+  font-family: var(--font);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rail-tile svg {
+  opacity: 0.8;
+}
+.rail-tile:hover {
+  border-color: var(--blue-300);
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 4%, var(--panel));
+}
+.rail-ai {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--blue) 45%, var(--border-2));
+  background: color-mix(in srgb, var(--blue) 5%, var(--panel));
+  color: var(--blue);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.scanvas {
+  flex: 1;
+  min-width: 0;
+  padding: 18px 20px 120px;
+}
+.sinspector {
+  position: sticky;
+  top: 118px;
+  align-self: flex-start;
+  width: 312px;
+  flex: none;
+  height: calc(100vh - 118px);
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
 .builder-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   grid-auto-rows: 64px;
   gap: 18px;
   border-radius: 16px;
-  padding-bottom: 120px;
 }
 .builder-item {
   position: relative;
   min-width: 0;
 }
+.builder-item.selected {
+  z-index: 20;
+}
+.builder-item.selected > :first-child {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+  border-radius: 16px;
+}
 
-/* on phones the drag-grid can't lay out 12 columns; stack widgets so the page
-   stays usable (add / edit / remove still work; precise drag-resize is desktop) */
+@media (max-width: 900px) {
+  .srail {
+    display: none;
+  }
+  .sinspector {
+    position: fixed;
+    right: 0;
+    top: 64px;
+    bottom: 0;
+    height: auto;
+    width: min(340px, 92vw);
+    z-index: 60;
+    box-shadow: var(--shadow-md);
+  }
+}
 @media (max-width: 768px) {
   .builder-grid {
     grid-template-columns: 1fr;
@@ -487,7 +958,8 @@ function cancel() {
   opacity: 0;
   transition: opacity 0.15s;
 }
-.overlay:hover .tools {
+.overlay:hover .tools,
+.builder-item.selected .tools {
   opacity: 1;
 }
 .tool {
