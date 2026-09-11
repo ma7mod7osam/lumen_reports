@@ -818,6 +818,7 @@ def ask_ai(
 	history: str | list | None = None,
 	existing_titles: str | list | None = None,
 	answered: bool | str = False,
+	analyze: bool | str = True,
 ):
 	"""Natural-language question -> widget spec + executed result.
 
@@ -826,7 +827,9 @@ def ask_ai(
 	`existing_titles` are widgets already on the user's board, so a follow-up
 	adds new perspectives instead of recreating what exists.
 	`answered` marks this call as the reply to a clarifying question — the model
-	must build now, because a second question in a row is a dead end."""
+	must build now, because a second question in a row is a dead end.
+	`analyze` off skips the analyst narrative, for callers (the studio copilot)
+	that only need the widgets and should not spend the extra calls."""
 	_require_user()
 	prompt = (prompt or "").strip()
 	if not prompt:
@@ -834,6 +837,7 @@ def ask_ai(
 	history = [h for h in (frappe.parse_json(history or "[]") or []) if isinstance(h, dict)][-10:]
 	existing_titles = [t for t in (frappe.parse_json(existing_titles or "[]") or []) if t][:20]
 	answered = frappe.parse_json(answered) if isinstance(answered, str) else bool(answered)
+	analyze = frappe.parse_json(analyze) if isinstance(analyze, str) else bool(analyze)
 
 	key, model, source = _resolve_key()
 	if not key:
@@ -976,7 +980,7 @@ def ask_ai(
 		"questions": [q for q in (spec.get("questions") or []) if isinstance(q, str)][:3],
 		# written AFTER execution, from the real numbers — the model finally
 		# gets to say what the data shows, not just what the charts are
-		"analysis": _analyze(prompt, widgets, context, key, model),
+		"analysis": _analyze(prompt, widgets, context, key, model) if analyze else None,
 	}
 
 

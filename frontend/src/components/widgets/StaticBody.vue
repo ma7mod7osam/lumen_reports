@@ -2,17 +2,19 @@
   <!-- Layout furniture: the pieces that make a board read like a document
        rather than a pile of charts. None of these touch the data engine, so
        they never load, never fail, and never need a permission check. -->
+  <!-- dir="auto" lets an Arabic heading run right to left and an English one
+       left to right, each from its own first letter -->
   <div v-if="widgetType === 'Heading'" class="el-heading" :class="[align, 'lv' + level]">
-    <div class="ht">{{ style.text || 'Section heading' }}</div>
-    <div v-if="style.subtext" class="hs">{{ style.subtext }}</div>
+    <div class="ht" :class="{ ar: isArabic(style.text) }" dir="auto">{{ style.text || 'Section heading' }}</div>
+    <div v-if="style.subtext" class="hs" :class="{ ar: isArabic(style.subtext) }" dir="auto">{{ style.subtext }}</div>
   </div>
 
   <div v-else-if="widgetType === 'Text'" class="el-text" :class="[align, size, { framed: !!style.framed }]">
-    <p>{{ style.text || 'Write a note for whoever reads this dashboard.' }}</p>
+    <p :class="{ ar: isArabic(style.text) }" dir="auto">{{ style.text || 'Write a note for whoever reads this dashboard.' }}</p>
   </div>
 
   <div v-else-if="widgetType === 'Divider'" class="el-divider">
-    <span v-if="style.text" class="mono dl">{{ style.text }}</span>
+    <span v-if="style.text" class="dl" :class="{ ar: isArabic(style.text) }" dir="auto">{{ style.text }}</span>
     <i class="rule"></i>
   </div>
 
@@ -40,17 +42,23 @@ const props = defineProps({
 const align = computed(() => props.style.align || 'left')
 const size = computed(() => props.style.size || 'md')
 const level = computed(() => Number(props.style.level) || 1)
+
+function isArabic(text) {
+  return /[؀-ۿ]/.test(text || '')
+}
 </script>
 
 <style scoped>
+/* "left" means the start of the line and "right" its end, so an Arabic
+   heading set to the default sits on the right where Arabic begins */
 .left {
-  text-align: left;
+  text-align: start;
 }
 .center {
   text-align: center;
 }
 .right {
-  text-align: right;
+  text-align: end;
 }
 
 .el-heading {
@@ -124,12 +132,26 @@ const level = computed(() => Number(props.style.level) || 1)
   gap: 12px;
 }
 .el-divider .dl {
+  font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* Arabic letters join to their neighbours: any letter-spacing pulls a word
+   apart into disconnected letters, and the mono face has no Arabic glyphs */
+.ar,
+.el-heading.lv3 .ht.ar,
+.el-divider .dl.ar {
+  letter-spacing: 0;
+  text-transform: none;
+  font-family: var(--font);
+}
+.el-divider .dl.ar {
+  font-size: 12px;
 }
 .el-divider .rule {
   flex: 1;

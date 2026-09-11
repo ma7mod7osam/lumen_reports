@@ -42,9 +42,14 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
         Settings
       </button>
-      <button class="lbtn" style="color: var(--blue); border-color: color-mix(in srgb, var(--blue) 35%, var(--border-2))" @click="openAi()">
+      <button
+        class="lbtn"
+        :class="{ on: showCopilot && !showTheme }"
+        style="color: var(--blue); border-color: color-mix(in srgb, var(--blue) 35%, var(--border-2))"
+        @click="toggleCopilot"
+      >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z" /></svg>
-        Ask AI
+        Copilot
       </button>
       <button v-if="settings.name" class="lbtn" @click="preview">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
@@ -107,8 +112,8 @@
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" /></svg>
           </div>
           <div style="font-weight: 700; color: var(--ink)">An empty canvas</div>
-          <div style="font-size: 12.5px; margin-bottom: 10px">Pick an element from the left rail, or describe the dashboard to the AI</div>
-          <button class="lbtn primary" @click="openAi()">Ask AI to draft it</button>
+          <div style="font-size: 12.5px; margin-bottom: 10px">Pick an element from the left rail, or describe the dashboard to the copilot</div>
+          <button class="lbtn primary" @click="openAi()">Ask the copilot to draft it</button>
         </div>
 
         <!-- edit grid -->
@@ -147,7 +152,22 @@
       <div v-if="showTheme" class="sinspector">
         <ThemePanel :theme="settings.theme" @apply="applyTheme" @close="showTheme = false" />
       </div>
-      <div v-else-if="selectedWidget" class="sinspector">
+      <!-- the copilot stays open while widgets are picked on the canvas: picking
+           one only narrows what "this" means in the conversation. It is hidden
+           rather than unmounted, so closing it never loses the conversation -->
+      <div v-if="copilotMounted" v-show="showCopilot && !showTheme" class="sinspector wide">
+        <CopilotPanel
+          :get-board="getBoard"
+          :selected="selectedWidget"
+          :history-pointer="histPointer"
+          @apply="applyProposal"
+          @undo="undo"
+          @close="showCopilot = false"
+          @clear-scope="deselect"
+          @open-inspector="showCopilot = false"
+        />
+      </div>
+      <div v-if="!showTheme && !showCopilot && selectedWidget" class="sinspector">
         <WidgetInspector
           :widget="selectedWidget"
           @apply="applyInspector"
@@ -157,14 +177,6 @@
     </div>
   </div>
 
-  <AiAssist
-    v-if="aiOpen"
-    :edit-widget="aiWidget"
-    :existing-titles="widgets.map((w) => w.title)"
-    @close="aiOpen = false"
-    @add="onAiAdd"
-    @apply="onAiApply"
-  />
   <SettingsModal
     v-if="showSettings"
     :settings="settings"
@@ -183,7 +195,7 @@ import BuilderWidget from '@/components/builder/BuilderWidget.vue'
 import WidgetInspector from '@/components/builder/WidgetInspector.vue'
 import SettingsModal from '@/components/builder/SettingsModal.vue'
 import ThemePanel from '@/components/builder/ThemePanel.vue'
-import AiAssist from '@/components/builder/AiAssist.vue'
+import CopilotPanel from '@/components/builder/CopilotPanel.vue'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
 import ElementIcon from '@/components/widgets/ElementIcon.vue'
 import ThemeScope from '@/components/ThemeScope.vue'
@@ -217,8 +229,8 @@ const loadError = ref(null)
 
 const showSettings = ref(false)
 const showTheme = ref(false)
-const aiOpen = ref(false)
-const aiWidget = ref(null)
+const showCopilot = ref(false)
+const copilotMounted = ref(false) // mounted on first open, then kept for the session
 const selectedId = ref(null)
 
 const selectedWidget = computed(
@@ -321,6 +333,8 @@ function addFromPalette(type, label) {
   layout[id] = { x: 0, y: nextRow(), ...defaultSize(type) }
   selectedId.value = id
   showTheme.value = false
+  // a fresh widget needs its data picked, which is the inspector's job
+  showCopilot.value = false
 }
 
 function applyInspector(config) {
@@ -345,30 +359,81 @@ function applyTheme(next) {
   Object.assign(settings.theme, next)
 }
 
+// ---------- copilot ----------
+
 function openAi(widget = null) {
-  aiWidget.value = widget
-  aiOpen.value = true
+  showTheme.value = false
+  showCopilot.value = true
+  copilotMounted.value = true
+  // opened from a widget's sparkle: the copilot works on that widget
+  if (widget) selectedId.value = widget.widget_id
 }
 
-function onAiAdd(configs) {
-  aiOpen.value = false
-  for (const config of configs) {
-    const id = 'ai' + Math.random().toString(36).slice(2, 8)
-    widgets.value.push({ ...config, widget_id: id, linked_filters: {} })
-    layout[id] = { x: 0, y: nextRow(), ...defaultSize(config.widget_type) }
-    loadFields(config.query?.parent_doctype || config.query?.doctype)
+function toggleCopilot() {
+  if (showCopilot.value && !showTheme.value) showCopilot.value = false
+  else openAi()
+}
+
+// the board as the studio holds it right now, unsaved edits included
+function getBoard() {
+  return {
+    title: settings.title,
+    theme: settings.theme,
+    widgets: widgets.value.map((w) => ({
+      widget_id: w.widget_id,
+      title: w.title,
+      widget_type: w.widget_type,
+      query: w.query,
+      style: w.style || {},
+    })),
+    layout: widgets.value.map((w) => ({ widget_id: w.widget_id, ...layout[w.widget_id] })),
   }
 }
 
-function onAiApply(config) {
-  aiOpen.value = false
-  const i = widgets.value.findIndex((w) => w.widget_id === aiWidget.value.widget_id)
-  if (i >= 0) {
-    // replaced object -> the inspector re-syncs from the new reference
-    widgets.value[i] = { ...widgets.value[i], ...config }
-    loadFields(config.query?.parent_doctype || config.query?.doctype)
+function sameJson(a, b) {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+}
+
+function flushHistory() {
+  clearTimeout(historyTimer)
+  recordHistory()
+}
+
+// Apply a copilot proposal as ONE history step, so a single Undo takes the
+// whole turn back. Widgets the proposal leaves alone keep their object, and
+// an unchanged query keeps its reference, so those charts don't reload.
+function applyProposal(proposal, done) {
+  flushHistory()
+  const current = new Map(widgets.value.map((w) => [w.widget_id, w]))
+  widgets.value = proposal.widgets.map((pw) => {
+    const cur = current.get(pw.widget_id)
+    if (!cur) return { ...pw, linked_filters: {} }
+    const same =
+      cur.title === pw.title &&
+      cur.widget_type === pw.widget_type &&
+      sameJson(cur.query, pw.query) &&
+      sameJson(cur.style, pw.style)
+    if (same) return cur
+    return {
+      ...cur,
+      title: pw.title,
+      widget_type: pw.widget_type,
+      query: sameJson(cur.query, pw.query) ? cur.query : pw.query,
+      style: pw.style || {},
+    }
+  })
+  for (const key of Object.keys(layout)) delete layout[key]
+  for (const item of proposal.layout) {
+    layout[item.widget_id] = { x: item.x, y: item.y, w: item.w, h: item.h }
   }
-  aiWidget.value = null
+  settings.theme = { ...DEFAULT_THEME, ...(proposal.theme || {}) }
+  if (proposal.title) settings.title = proposal.title
+  if (selectedId.value && !widgets.value.some((w) => w.widget_id === selectedId.value)) {
+    selectedId.value = null
+  }
+  widgets.value.forEach((w) => loadFields(w.query?.parent_doctype || w.query?.doctype))
+  flushHistory()
+  done?.(histPointer.value)
 }
 
 function duplicateWidget(widget) {
@@ -407,7 +472,7 @@ function isTyping(event) {
 }
 
 function onKeydown(event) {
-  if (aiOpen.value || showSettings.value) return
+  if (showSettings.value) return
   if (showTheme.value && event.key !== 'Escape') return
   const mod = event.ctrlKey || event.metaKey
   if (mod && !event.shiftKey && event.key.toLowerCase() === 'z') {
@@ -908,6 +973,9 @@ function exit() {
   height: calc(100vh - 118px);
   border-left: 1px solid var(--border);
   background: var(--panel);
+}
+.sinspector.wide {
+  width: min(348px, 94vw);
 }
 
 .builder-grid {
