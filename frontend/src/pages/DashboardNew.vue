@@ -1,8 +1,8 @@
 <template>
   <div class="mx-auto max-w-5xl px-6 py-10">
     <div class="head">
-      <h1>Create a dashboard</h1>
-      <p>Describe it and the assistant drafts it, or start from a template</p>
+      <h1>{{ t('Create a dashboard') }}</h1>
+      <p>{{ t('Describe it and the assistant drafts it, or start from a template') }}</p>
     </div>
 
     <!-- describe it -->
@@ -14,14 +14,15 @@
       <input
         v-model="prompt"
         type="text"
-        placeholder="A monthly sales dashboard per branch, with targets and top customers"
+        dir="auto"
+        :placeholder="t('A monthly sales dashboard per branch, with targets and top customers')"
         spellcheck="false"
       />
-      <button class="lbtn primary" type="submit" :disabled="!prompt.trim()">Build it</button>
+      <button class="lbtn primary" type="submit" :disabled="!prompt.trim()">{{ t('Build it') }}</button>
     </form>
 
     <div class="rule">
-      <span class="mono">Or start from a template</span>
+      <span class="mono">{{ t('Or start from a template') }}</span>
       <i></i>
     </div>
 
@@ -31,42 +32,42 @@
 
     <div v-else class="cards">
       <button
-        v-for="t in starters"
-        :key="t.id"
+        v-for="s in starters"
+        :key="s.id"
         class="tcard"
         :disabled="!!building"
-        @click="use(t)"
+        @click="use(s)"
       >
         <span class="thumb">
-          <span v-for="(row, ri) in thumbRows(t)" :key="ri" class="trow">
+          <span v-for="(row, ri) in thumbRows(s)" :key="ri" class="trow">
             <i v-for="(cell, ci) in row" :key="ci" :class="'mini ' + cell.kind" :style="{ flex: cell.span }">
               <ChartIcon v-if="cell.type" :type="cell.type" :size="13" />
             </i>
           </span>
         </span>
         <span class="tmeta">
-          <span class="tname">{{ t.name }}</span>
-          <span class="tsub">{{ t.widget_count }} widgets · {{ t.doctype }}</span>
-          <span class="tdesc">{{ t.description }}</span>
+          <span class="tname">{{ s.name }}</span>
+          <span class="tsub">{{ t('{0} widgets', s.widget_count) }} · {{ s.doctype }}</span>
+          <span class="tdesc">{{ s.description }}</span>
         </span>
-        <span v-if="building === t.id" class="tbusy">Building…</span>
+        <span v-if="building === s.id" class="tbusy">{{ t('Building…') }}</span>
       </button>
 
       <router-link to="/new/blank" class="tcard blank">
         <span class="plus">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
         </span>
-        <span class="tname">Start blank</span>
-        <span class="tsub">An empty canvas</span>
+        <span class="tname">{{ t('Start blank') }}</span>
+        <span class="tsub">{{ t('An empty canvas') }}</span>
       </router-link>
     </div>
 
     <p v-if="error" class="err-note">{{ error }}</p>
     <p v-else-if="!loading && !starters.length" class="foot">
-      No template matches the apps installed here. Start blank, or describe what you need.
+      {{ t('No template matches the apps installed here. Start blank, or describe what you need.') }}
     </p>
     <p v-else class="foot">
-      A template runs against your own data first and leaves out anything this site cannot answer.
+      {{ t('A template runs against your own data first and leaves out anything this site cannot answer.') }}
     </p>
   </div>
 </template>
@@ -76,6 +77,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { call } from 'frappe-ui'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
+import { lang, t } from '@/lib/i18n'
 import '@/components/builder/controls.css'
 
 const router = useRouter()
@@ -85,9 +87,11 @@ const loading = ref(true)
 const building = ref('')
 const error = ref('')
 
+// the template's headings and widget titles become the dashboard's own
+// content, so an Arabic user gets an Arabic dashboard from the start
 onMounted(async () => {
   try {
-    starters.value = await call('lumen_reports.starters.list_starters')
+    starters.value = await call('lumen_reports.starters.list_starters', { lang: lang.value })
   } catch (e) {
     error.value = e.messages?.[0] || e.message || String(e)
   } finally {
@@ -107,6 +111,7 @@ async function use(starter) {
   try {
     const result = await call('lumen_reports.starters.create_from_starter', {
       starter_id: starter.id,
+      lang: lang.value,
     })
     router.push({ name: 'DashboardEdit', params: { slug: result.slug } })
   } catch (e) {
@@ -117,9 +122,9 @@ async function use(starter) {
 
 /** A rough picture of the template's shape, drawn from its widget types. */
 function thumbRows(starter) {
-  const types = (starter.widget_types || []).filter((t) => t !== 'Heading' && t !== 'Divider')
-  const kpis = types.filter((t) => t === 'Number Card')
-  const rest = types.filter((t) => t !== 'Number Card').slice(0, 3)
+  const types = (starter.widget_types || []).filter((type) => type !== 'Heading' && type !== 'Divider')
+  const kpis = types.filter((type) => type === 'Number Card')
+  const rest = types.filter((type) => type !== 'Number Card').slice(0, 3)
   const rows = []
   if (kpis.length) {
     rows.push(kpis.slice(0, 4).map(() => ({ kind: 'kpi', span: 1 })))
@@ -216,7 +221,7 @@ function thumbRows(starter) {
   position: relative;
   display: flex;
   flex-direction: column;
-  text-align: left;
+  text-align: start;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 16px;

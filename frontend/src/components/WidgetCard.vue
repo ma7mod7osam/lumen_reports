@@ -2,8 +2,8 @@
   <div class="panel flex h-full flex-col" :class="{ err: !!error }">
     <div v-if="title" class="panel-h" style="padding: 13px 18px">
       <div>
-        <div class="t">{{ title }}</div>
-        <div v-if="subtitle" class="s">{{ subtitle }}</div>
+        <div class="t" dir="auto">{{ title }}</div>
+        <div v-if="subtitle" class="s" dir="auto">{{ subtitle }}</div>
       </div>
       <slot name="actions" />
     </div>
@@ -15,7 +15,7 @@
             <path d="M12 8v5M12 16h.01" />
           </svg>
         </div>
-        <div style="font-weight: 700; color: var(--ink)">Couldn't load this widget</div>
+        <div style="font-weight: 700; color: var(--ink)">{{ t("Couldn't load this widget") }}</div>
         <div style="font-size: 12.5px">{{ shortError }}</div>
       </div>
       <template v-else>
@@ -32,6 +32,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { t } from '@/lib/i18n'
 
 const props = defineProps({
   title: { type: String, default: '' },

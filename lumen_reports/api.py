@@ -3,6 +3,7 @@
 
 import hashlib
 import json
+import re
 
 import frappe
 from frappe import _
@@ -480,7 +481,11 @@ def save_dashboard(payload: str | dict):
 		doc = frappe.get_doc("Lumen Dashboard", data["name"])
 	else:
 		doc = frappe.new_doc("Lumen Dashboard")
-		doc.route_slug = data.get("slug") or frappe.scrub(data.get("title", "")).replace("_", "-")
+		slug = data.get("slug") or data.get("title") or ""
+		slug = re.sub(r"[^a-z0-9]+", "-", slug.lower()).strip("-")
+		# a title in Arabic has no Latin letters left after that, so it gets a
+		# short neutral address instead of an encoded, unreadable one
+		doc.route_slug = slug or "dashboard-" + frappe.generate_hash(length=5)
 
 	doc.dashboard_title = data.get("title") or doc.dashboard_title
 	doc.description = data.get("description") or ""

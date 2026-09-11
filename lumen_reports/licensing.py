@@ -98,24 +98,37 @@ def is_licensed() -> bool:
 	return get_status().get("status") in (STATUS_LICENSED, STATUS_UNKNOWN)
 
 
-def notice() -> str | None:
+NOTICES = {
+	"en": {
+		STATUS_EXPIRED: (
+			"Your Lumen Reports subscription is no longer active. Dashboards stay "
+			"visible, but you can't create or edit them until it's renewed."
+		),
+		STATUS_UNLICENSED: (
+			"This copy of Lumen Reports has no licence. Contact hello@lumen-solutions.co "
+			"for a licence to use it in production."
+		),
+	},
+	"ar": {
+		STATUS_EXPIRED: (
+			"انتهى اشتراكك في لومن تقارير. تبقى اللوحات ظاهرة، لكن لا يمكن إنشاؤها أو "
+			"تعديلها حتى يجدد الاشتراك."
+		),
+		STATUS_UNLICENSED: (
+			"هذه النسخة من لومن تقارير غير مرخصة. تواصل مع hello@lumen-solutions.co "
+			"للحصول على ترخيص لاستخدامها في بيئة التشغيل."
+		),
+	},
+}
+
+
+def notice(lang: str | None = None) -> str | None:
 	"""A short line for the UI banner, or None when nothing needs saying."""
 	# a developer's own bench shouldn't nag on every page
 	if frappe.conf.get("developer_mode"):
 		return None
-
 	status = get_status().get("status")
-	if status == STATUS_EXPIRED:
-		return _(
-			"Your Lumen Reports subscription is no longer active. Dashboards stay "
-			"visible, but you can't create or edit them until it's renewed."
-		)
-	if status == STATUS_UNLICENSED:
-		return _(
-			"This copy of Lumen Reports has no licence. It's free to evaluate — "
-			"contact hello@lumen-solutions.co for a licence to use it in production."
-		)
-	return None
+	return NOTICES["ar" if lang == "ar" else "en"].get(status)
 
 
 def require_license():
@@ -131,6 +144,6 @@ def require_license():
 
 
 @frappe.whitelist()
-def get_license_notice():
-	"""Whitelisted for the UI banner. Returns no secrets — only a status word."""
-	return {"status": get_status().get("status"), "notice": notice()}
+def get_license_notice(lang: str | None = None):
+	"""Whitelisted for the UI banner. Returns no secrets, only a status word."""
+	return {"status": get_status().get("status"), "notice": notice(lang)}

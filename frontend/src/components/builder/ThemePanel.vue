@@ -2,22 +2,22 @@
   <div class="tp">
     <div class="tp-head">
       <div>
-        <div class="tp-title">Theme</div>
-        <div class="tp-sub">Applies to this dashboard only</div>
+        <div class="tp-title">{{ t('Theme') }}</div>
+        <div class="tp-sub">{{ t('Applies to this dashboard only') }}</div>
       </div>
-      <button class="x" title="Close" @click="$emit('close')">
+      <button class="x" :title="t('Close')" @click="$emit('close')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
     </div>
 
     <div class="tp-body">
       <div class="grp">
-        <label class="eyebrow">Preset</label>
+        <label class="eyebrow">{{ t('Preset') }}</label>
         <div class="presets">
           <button
             class="preset"
             :class="{ on: !form.preset }"
-            title="Follow the app theme"
+            :title="t('Follow the app theme')"
             @click="pick('')"
           >
             <span class="strip app">
@@ -25,7 +25,7 @@
               <i style="flex: 1; background: var(--blue)"></i>
               <i style="flex: 1; background: var(--panel)"></i>
             </span>
-            <span class="nm">App default</span>
+            <span class="nm">{{ t('App default') }}</span>
           </button>
           <button
             v-for="p in THEME_PRESETS"
@@ -39,31 +39,32 @@
               <i :style="{ flex: 1, background: presetSwatch(p)[1] }"></i>
               <i :style="{ flex: 1, background: presetSwatch(p)[2] }"></i>
             </span>
-            <span class="nm">{{ p.name }}</span>
+            <span class="nm">{{ t(p.name) }}</span>
           </button>
         </div>
       </div>
 
       <div class="grp">
-        <label class="eyebrow">Brand color</label>
+        <label class="eyebrow">{{ t('Brand color') }}</label>
         <div class="brandrow">
           <input type="color" class="swatch" :value="brandValue" @input="onBrand($event.target.value)" />
           <input
             type="text"
             class="hex mono"
+            dir="ltr"
             :value="form.brand"
-            placeholder="Preset default"
+            :placeholder="t('Preset default')"
             spellcheck="false"
             @change="onBrand($event.target.value.trim())"
           />
-          <button v-if="form.brand" class="x sm" title="Back to the preset color" @click="onBrand('')">
+          <button v-if="form.brand" class="x sm" :title="t('Back to the preset color')" @click="onBrand('')">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" /></svg>
           </button>
         </div>
       </div>
 
       <div class="grp">
-        <label class="eyebrow">Card style</label>
+        <label class="eyebrow">{{ t('Card style') }}</label>
         <div class="segm">
           <button
             v-for="c in CARD_STYLES"
@@ -71,21 +72,21 @@
             :class="{ on: effectiveCard === c.id }"
             @click="set('card', c.id)"
           >
-            {{ c.label }}
+            {{ t(c.label) }}
           </button>
         </div>
       </div>
 
       <div class="two">
         <div class="grp">
-          <label class="eyebrow">Corner radius</label>
+          <label class="eyebrow">{{ t('Corner radius') }}</label>
           <div class="sliderow">
             <input type="range" min="0" max="28" step="2" :value="radiusValue" @input="set('radius', Number($event.target.value))" />
             <span class="mono num">{{ radiusValue }}</span>
           </div>
         </div>
         <div class="grp">
-          <label class="eyebrow">Density</label>
+          <label class="eyebrow">{{ t('Density') }}</label>
           <div class="segm">
             <button
               v-for="d in DENSITIES"
@@ -93,14 +94,14 @@
               :class="{ on: (form.density || 'comfort') === d.id }"
               @click="set('density', d.id)"
             >
-              {{ d.label }}
+              {{ t(d.label) }}
             </button>
           </div>
         </div>
       </div>
 
       <div class="grp">
-        <label class="eyebrow">Background</label>
+        <label class="eyebrow">{{ t('Background') }}</label>
         <div class="surfaces">
           <button
             v-for="s in SURFACES"
@@ -108,34 +109,33 @@
             class="surface"
             :class="{ on: (form.surface || 'solid') === s.id }"
             :style="surfaceStyle(s.id)"
-            :title="s.label"
+            :title="t(s.label)"
             @click="set('surface', s.id)"
           >
-            <span>{{ s.label }}</span>
+            <span>{{ t(s.label) }}</span>
           </button>
         </div>
       </div>
 
       <div class="grp">
-        <label class="eyebrow">Font</label>
+        <label class="eyebrow">{{ t('Font') }}</label>
         <select class="sel" :value="form.font" @change="set('font', $event.target.value)">
-          <option v-for="f in FONTS" :key="f.id" :value="f.id">{{ f.label }}</option>
+          <option v-for="f in FONTS" :key="f.id" :value="f.id">{{ t(f.label) }}</option>
         </select>
       </div>
 
       <div class="grp">
-        <label class="eyebrow">Chart colors</label>
+        <label class="eyebrow">{{ t('Chart colors') }}</label>
         <div class="dots">
           <i v-for="(c, i) in previewPalette" :key="i" :style="{ background: c }"></i>
         </div>
         <p class="hint">
-          Charts follow the theme. A widget with its own accent keeps it, so a
-          highlight you set by hand survives a preset change.
+          {{ t('Charts follow the theme. A widget with its own accent keeps it, so a highlight you set by hand survives a preset change.') }}
         </p>
       </div>
 
       <button v-if="!isDefaultTheme(form)" class="lbtn danger reset" @click="resetAll">
-        Reset to the app theme
+        {{ t('Reset to the app theme') }}
       </button>
     </div>
   </div>
@@ -155,6 +155,7 @@ import {
   presetSwatch,
   themeVars,
 } from '@/lib/dashboardTheme'
+import { t } from '@/lib/i18n'
 import '@/components/builder/controls.css'
 
 const props = defineProps({ theme: { type: Object, default: () => ({}) } })
@@ -301,7 +302,7 @@ function surfaceStyle(id) {
   gap: 7px;
   background: var(--panel);
   cursor: pointer;
-  text-align: left;
+  text-align: start;
 }
 .preset:hover {
   border-color: var(--blue-300);
@@ -405,7 +406,7 @@ function surfaceStyle(id) {
   font-size: 11.5px;
   color: var(--ink-2);
   width: 20px;
-  text-align: right;
+  text-align: end;
 }
 
 .surfaces {

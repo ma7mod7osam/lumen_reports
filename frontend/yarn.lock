@@ -189,6 +189,11 @@
   resolved "https://registry.yarnpkg.com/@fontsource/ibm-plex-mono/-/ibm-plex-mono-5.3.0.tgz#1879699d104602d5331e28e103f33c3b1b766b17"
   integrity sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==
 
+"@fontsource/ibm-plex-sans-arabic@5":
+  version "5.3.0"
+  resolved "https://registry.yarnpkg.com/@fontsource/ibm-plex-sans-arabic/-/ibm-plex-sans-arabic-5.3.0.tgz#8a5f64a60fbd748f7f8f2e8335911c7f554e5300"
+  integrity sha512-ZZ4g+JDgQY0NqSh4o0MNWU1sHQmtcee1g++aKAwyJvZxnT5y51JXsN1cIXnaQaMd40dcbK6QFYa+Z1LbaiNuqA==
+
 "@fontsource/plus-jakarta-sans@^5.0.20":
   version "5.3.0"
   resolved "https://registry.yarnpkg.com/@fontsource/plus-jakarta-sans/-/plus-jakarta-sans-5.3.0.tgz#a1c37aec60423dd44476d9da00bd34ce546ee859"

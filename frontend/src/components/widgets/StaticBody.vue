@@ -5,12 +5,12 @@
   <!-- dir="auto" lets an Arabic heading run right to left and an English one
        left to right, each from its own first letter -->
   <div v-if="widgetType === 'Heading'" class="el-heading" :class="[align, 'lv' + level]">
-    <div class="ht" :class="{ ar: isArabic(style.text) }" dir="auto">{{ style.text || 'Section heading' }}</div>
+    <div class="ht" :class="{ ar: isArabic(style.text || t('Section heading')) }" dir="auto">{{ style.text || t('Section heading') }}</div>
     <div v-if="style.subtext" class="hs" :class="{ ar: isArabic(style.subtext) }" dir="auto">{{ style.subtext }}</div>
   </div>
 
   <div v-else-if="widgetType === 'Text'" class="el-text" :class="[align, size, { framed: !!style.framed }]">
-    <p :class="{ ar: isArabic(style.text) }" dir="auto">{{ style.text || 'Write a note for whoever reads this dashboard.' }}</p>
+    <p :class="{ ar: isArabic(style.text || t('Write a note for whoever reads this dashboard.')) }" dir="auto">{{ style.text || t('Write a note for whoever reads this dashboard.') }}</p>
   </div>
 
   <div v-else-if="widgetType === 'Divider'" class="el-divider">
@@ -26,13 +26,14 @@
         <circle cx="9" cy="9" r="2" />
         <path d="m21 15-4.6-4.6L5 22" />
       </svg>
-      <span>Add an image URL in the panel on the right</span>
+      <span>{{ t('Add an image URL in the side panel') }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { t } from '@/lib/i18n'
 
 const props = defineProps({
   widgetType: { type: String, required: true },

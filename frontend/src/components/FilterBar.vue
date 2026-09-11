@@ -15,7 +15,7 @@
           :value="modelValue[filter.name] ?? ''"
           @change="(e) => update(filter.name, e.target.value)"
         >
-          <option value="">All</option>
+          <option value="">{{ t('All') }}</option>
           <option v-for="opt in optionsFor(filter)" :key="opt.value" :value="opt.value">
             {{ opt.label }}
           </option>
@@ -29,7 +29,7 @@
     </template>
 
     <button v-if="hasActiveFilters" class="chip on" @click="$emit('update:modelValue', {})">
-      Clear all
+      {{ t('Clear all') }}
       <span class="x">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
           <path d="M6 6l12 12M18 6 6 18" />
@@ -42,6 +42,7 @@
 <script setup>
 import { computed } from 'vue'
 import LinkFilter from '@/components/LinkFilter.vue'
+import { t } from '@/lib/i18n'
 
 const props = defineProps({
   filters: { type: Array, required: true },
@@ -56,8 +57,8 @@ const hasActiveFilters = computed(() =>
 function optionsFor(filter) {
   if (filter.fieldtype === 'Check') {
     return [
-      { label: 'Yes', value: '1' },
-      { label: 'No', value: '0' },
+      { label: t('Yes'), value: '1' },
+      { label: t('No'), value: '0' },
     ]
   }
   return (filter.options || []).map((o) => (typeof o === 'string' ? { label: o, value: o } : o))

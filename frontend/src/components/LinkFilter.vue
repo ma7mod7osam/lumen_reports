@@ -4,12 +4,13 @@
     <input
       ref="input"
       :value="display"
-      :placeholder="'All'"
+      dir="auto"
+      :placeholder="t('All')"
       style="border: none; background: transparent; outline: none; font-family: var(--font); font-size: 13.5px; font-weight: 600; color: var(--ink); width: 110px; min-width: 0"
       @input="onType"
       @focus="open"
     />
-    <button v-if="value" class="lf-clear" @click.stop="choose('')" title="Clear">
+    <button v-if="value" class="lf-clear" @click.stop="choose('')" :title="t('Clear')">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
     </button>
     <span v-else class="chev">
@@ -17,7 +18,7 @@
     </span>
 
     <div v-if="isOpen" class="lf-menu">
-      <div v-if="loading" class="lf-empty">Searching…</div>
+      <div v-if="loading" class="lf-empty">{{ t('Searching…') }}</div>
       <template v-else>
         <button
           v-for="opt in options"
@@ -28,7 +29,7 @@
         >
           {{ opt.label }}
         </button>
-        <div v-if="!options.length" class="lf-empty">No matches</div>
+        <div v-if="!options.length" class="lf-empty">{{ t('No matches') }}</div>
       </template>
     </div>
   </div>
@@ -37,6 +38,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { call } from 'frappe-ui'
+import { t } from '@/lib/i18n'
 
 const props = defineProps({
   filter: { type: Object, required: true },
@@ -137,7 +139,7 @@ onBeforeUnmount(() => {
 .lf-menu {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  inset-inline-start: 0;
   min-width: 200px;
   max-height: 260px;
   overflow-y: auto;
@@ -151,7 +153,7 @@ onBeforeUnmount(() => {
 .lf-opt {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: none;
   background: transparent;
   padding: 7px 10px;

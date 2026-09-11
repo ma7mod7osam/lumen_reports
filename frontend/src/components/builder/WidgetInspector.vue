@@ -6,9 +6,10 @@
         v-model="form.title"
         class="ins-title"
         type="text"
-        :placeholder="isElement ? 'Block name (not shown)' : 'Widget title'"
+        dir="auto"
+        :placeholder="isElement ? t('Block name (not shown)') : t('Widget title')"
       />
-      <button class="ins-x" title="Close (Esc)" @click="$emit('close')">
+      <button class="ins-x" :title="t('Close (Esc)')" @click="$emit('close')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
     </div>
@@ -16,100 +17,100 @@
     <div class="ins-body">
       <!-- type -->
       <div class="ins-sec">
-        <div class="ins-eyebrow">{{ isElement ? 'Element' : 'Widget type' }}</div>
+        <div class="ins-eyebrow">{{ isElement ? t('Element') : t('Widget type') }}</div>
         <div v-if="isElement" class="flex flex-wrap gap-1.5">
           <button
-            v-for="t in ELEMENT_PALETTE"
-            :key="t.value"
+            v-for="p in ELEMENT_PALETTE"
+            :key="p.value"
             class="typechip"
-            :class="{ on: form.widget_type === t.value }"
-            :title="t.label"
-            @click="setElementType(t.value)"
+            :class="{ on: form.widget_type === p.value }"
+            :title="t(p.label)"
+            @click="setElementType(p.value)"
           >
-            <ElementIcon :type="t.value" :size="12" />
-            {{ t.label }}
+            <ElementIcon :type="p.value" :size="12" />
+            {{ t(p.label) }}
           </button>
         </div>
         <div v-else class="flex flex-wrap gap-1.5">
           <button
-            v-for="t in WIDGET_TYPES"
-            :key="t.value"
+            v-for="p in WIDGET_TYPES"
+            :key="p.value"
             class="typechip"
-            :class="{ on: form.widget_type === t.value }"
-            :title="t.label"
-            @click="form.widget_type = t.value"
+            :class="{ on: form.widget_type === p.value }"
+            :title="t(p.label)"
+            @click="form.widget_type = p.value"
           >
-            <ChartIcon :type="t.value" :size="12" />
-            {{ t.label }}
+            <ChartIcon :type="p.value" :size="12" />
+            {{ t(p.label) }}
           </button>
         </div>
       </div>
 
       <!-- content: the layout elements carry text and pictures, not queries -->
       <div v-if="isElement" class="ins-sec">
-        <div class="ins-eyebrow">Content</div>
+        <div class="ins-eyebrow">{{ t('Content') }}</div>
 
         <template v-if="form.widget_type === 'Heading'">
           <div class="lfield">
-            <label>Heading</label>
-            <input type="text" v-model="form.text" placeholder="Section heading" />
+            <label>{{ t('Heading') }}</label>
+            <input type="text" v-model="form.text" dir="auto" :placeholder="t('Section heading')" />
           </div>
           <div class="lfield">
-            <label>Sub-heading (optional)</label>
-            <input type="text" v-model="form.subtext" placeholder="A line of context" />
+            <label>{{ t('Sub-heading (optional)') }}</label>
+            <input type="text" v-model="form.subtext" dir="auto" :placeholder="t('A line of context')" />
           </div>
           <div class="lfield">
-            <label>Size</label>
+            <label>{{ t('Size') }}</label>
             <div class="seg" style="width: fit-content">
-              <button :class="{ on: form.level === 1 }" @click="form.level = 1">Large</button>
-              <button :class="{ on: form.level === 2 }" @click="form.level = 2">Medium</button>
-              <button :class="{ on: form.level === 3 }" @click="form.level = 3">Label</button>
+              <button :class="{ on: form.level === 1 }" @click="form.level = 1">{{ t('Large') }}</button>
+              <button :class="{ on: form.level === 2 }" @click="form.level = 2">{{ t('Medium') }}</button>
+              <button :class="{ on: form.level === 3 }" @click="form.level = 3">{{ t('Label') }}</button>
             </div>
           </div>
         </template>
 
         <template v-else-if="form.widget_type === 'Text'">
           <div class="lfield">
-            <label>Note</label>
-            <textarea v-model="form.text" rows="5" placeholder="Explain what this section shows, who it is for, or how to read it."></textarea>
+            <label>{{ t('Note') }}</label>
+            <textarea v-model="form.text" rows="5" dir="auto" :placeholder="t('Explain what this section shows, who it is for, or how to read it.')"></textarea>
           </div>
           <div class="lfield">
-            <label>Size</label>
+            <label>{{ t('Size') }}</label>
             <div class="seg" style="width: fit-content">
-              <button :class="{ on: form.size === 'sm' }" @click="form.size = 'sm'">Small</button>
-              <button :class="{ on: form.size === 'md' }" @click="form.size = 'md'">Normal</button>
-              <button :class="{ on: form.size === 'lg' }" @click="form.size = 'lg'">Lead</button>
+              <button :class="{ on: form.size === 'sm' }" @click="form.size = 'sm'">{{ t('Small') }}</button>
+              <button :class="{ on: form.size === 'md' }" @click="form.size = 'md'">{{ t('Normal') }}</button>
+              <button :class="{ on: form.size === 'lg' }" @click="form.size = 'lg'">{{ t('Lead') }}</button>
             </div>
           </div>
         </template>
 
         <template v-else-if="form.widget_type === 'Divider'">
           <div class="lfield">
-            <label>Label (optional)</label>
-            <input type="text" v-model="form.text" placeholder="e.g. Second half" />
+            <label>{{ t('Label (optional)') }}</label>
+            <input type="text" v-model="form.text" dir="auto" :placeholder="t('e.g. Second half')" />
           </div>
         </template>
 
         <template v-else>
           <div class="lfield">
-            <label>Image URL</label>
-            <input type="text" v-model="form.url" placeholder="/files/logo.png" spellcheck="false" />
+            <label>{{ t('Image URL') }}</label>
+            <input type="text" v-model="form.url" dir="ltr" placeholder="/files/logo.png" spellcheck="false" />
           </div>
           <div class="lfield">
-            <label>Fit</label>
+            <label>{{ t('Fit') }}</label>
             <div class="seg" style="width: fit-content">
-              <button :class="{ on: form.fit === 'contain' }" @click="form.fit = 'contain'">Fit inside</button>
-              <button :class="{ on: form.fit === 'cover' }" @click="form.fit = 'cover'">Fill</button>
+              <button :class="{ on: form.fit === 'contain' }" @click="form.fit = 'contain'">{{ t('Fit inside') }}</button>
+              <button :class="{ on: form.fit === 'cover' }" @click="form.fit = 'cover'">{{ t('Fill') }}</button>
             </div>
           </div>
         </template>
 
         <div v-if="form.widget_type !== 'Divider'" class="lfield">
-          <label>Alignment</label>
+          <label>{{ t('Alignment') }}</label>
           <div class="seg" style="width: fit-content">
-            <button :class="{ on: form.align === 'left' }" @click="form.align = 'left'">Left</button>
-            <button :class="{ on: form.align === 'center' }" @click="form.align = 'center'">Center</button>
-            <button :class="{ on: form.align === 'right' }" @click="form.align = 'right'">Right</button>
+            <button :class="{ on: form.align === 'left' }" @click="form.align = 'left'">{{ t('Left') }}</button>
+            <button :class="{ on: form.align === 'center' }" @click="form.align = 'center'">{{ t('Center') }}</button>
+            <button :class="{ on: form.align === 'right' }" @click="form.align = 'right'">{{ t('Right') }}</button>
           </div>
         </div>
 
@@ -119,27 +120,27 @@
           style="color: var(--ink-2)"
         >
           <input type="checkbox" v-model="form.framed" />
-          Put it on a card
+          {{ t('Put it on a card') }}
         </label>
       </div>
 
       <!-- data source -->
       <div v-if="!isElement" class="ins-sec">
-        <div class="ins-eyebrow">Data</div>
+        <div class="ins-eyebrow">{{ t('Data') }}</div>
         <div class="lfield">
-          <label>Source</label>
+          <label>{{ t('Source') }}</label>
           <select v-model="form.doctype" @change="onDoctypeChange">
-            <option value="" disabled>Select a doctype…</option>
+            <option value="" disabled>{{ t('Select a doctype…') }}</option>
             <option v-for="d in doctypes.data || []" :key="d.name" :value="d.name">{{ d.name }}</option>
           </select>
         </div>
 
         <div v-if="lineTables.length" class="lfield">
-          <label>Analyze by</label>
+          <label>{{ t('Analyze by') }}</label>
           <div class="seg" style="width: fit-content">
-            <button :class="{ on: form.grain === 'document' }" @click="setGrain('document')">By document</button>
+            <button :class="{ on: form.grain === 'document' }" @click="setGrain('document')">{{ t('By document') }}</button>
             <button :class="{ on: form.grain === 'line' }" @click="setGrain('line')">
-              By {{ lineTables[0].label.toLowerCase().replace(/s$/, '') }}
+              {{ t('By line item') }}
             </button>
           </div>
         </div>
@@ -147,19 +148,15 @@
         <template v-if="form.widget_type !== 'Table'">
           <div class="grid grid-cols-2 gap-2.5">
             <div class="lfield">
-              <label>{{ isScatter ? 'X measure' : 'Measure' }}</label>
+              <label>{{ isScatter ? t('X measure') : t('Measure') }}</label>
               <select v-model="form.aggregate_function">
-                <option value="count">Count</option>
-                <option value="sum">Sum</option>
-                <option value="avg">Average</option>
-                <option value="min">Min</option>
-                <option value="max">Max</option>
+                <option v-for="a in AGGREGATES" :key="a" :value="a">{{ t(AGG_LABELS[a]) }}</option>
               </select>
             </div>
             <div v-if="form.aggregate_function !== 'count'" class="lfield">
-              <label>Of field</label>
+              <label>{{ t('Of field') }}</label>
               <select v-model="form.aggregate_field">
-                <option value="" disabled>Select…</option>
+                <option value="" disabled>{{ t('Select…') }}</option>
                 <option v-for="f in numericFields" :key="f.fieldname" :value="f.fieldname">{{ f.label }}</option>
               </select>
             </div>
@@ -168,37 +165,31 @@
           <template v-if="isScatter">
             <div class="grid grid-cols-2 gap-2.5">
               <div class="lfield">
-                <label>Y measure</label>
+                <label>{{ t('Y measure') }}</label>
                 <select v-model="form.y_function">
-                  <option value="count">Count</option>
-                  <option value="sum">Sum</option>
-                  <option value="avg">Average</option>
-                  <option value="min">Min</option>
-                  <option value="max">Max</option>
+                  <option v-for="a in AGGREGATES" :key="a" :value="a">{{ t(AGG_LABELS[a]) }}</option>
                 </select>
               </div>
               <div v-if="form.y_function !== 'count'" class="lfield">
-                <label>Of field</label>
+                <label>{{ t('Of field') }}</label>
                 <select v-model="form.y_field">
-                  <option value="" disabled>Select…</option>
+                  <option value="" disabled>{{ t('Select…') }}</option>
                   <option v-for="f in numericFields" :key="f.fieldname" :value="f.fieldname">{{ f.label }}</option>
                 </select>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-2.5">
               <div class="lfield">
-                <label>Bubble size</label>
+                <label>{{ t('Bubble size') }}</label>
                 <select v-model="form.size_function">
-                  <option value="">Same for all</option>
-                  <option value="count">Count</option>
-                  <option value="sum">Sum</option>
-                  <option value="avg">Average</option>
+                  <option value="">{{ t('Same for all') }}</option>
+                  <option v-for="a in ['count', 'sum', 'avg']" :key="a" :value="a">{{ t(AGG_LABELS[a]) }}</option>
                 </select>
               </div>
               <div v-if="form.size_function && form.size_function !== 'count'" class="lfield">
-                <label>Of field</label>
+                <label>{{ t('Of field') }}</label>
                 <select v-model="form.size_field">
-                  <option value="" disabled>Select…</option>
+                  <option value="" disabled>{{ t('Select…') }}</option>
                   <option v-for="f in numericFields" :key="f.fieldname" :value="f.fieldname">{{ f.label }}</option>
                 </select>
               </div>
@@ -208,61 +199,53 @@
           <template v-if="needsGroup">
             <div class="grid grid-cols-2 gap-2.5">
               <div class="lfield">
-                <label>{{ groupLabel }}</label>
+                <label>{{ t(groupLabel) }}</label>
                 <select v-model="form.group_key">
-                  <option value="" disabled>Select field…</option>
-                  <optgroup label="Fields">
+                  <option value="" disabled>{{ t('Select field…') }}</option>
+                  <optgroup :label="t('Fields')">
                     <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
                   </optgroup>
-                  <optgroup v-if="groupRelated.length" label="Related (joined)">
+                  <optgroup v-if="groupRelated.length" :label="t('Related (joined)')">
                     <option v-for="o in groupRelated" :key="o.key" :value="o.key">{{ o.label }}</option>
                   </optgroup>
                 </select>
               </div>
               <div v-if="groupByIsDate" class="lfield">
-                <label>Time grain</label>
+                <label>{{ t('Time grain') }}</label>
                 <select v-model="form.time_grain">
-                  <option value="hour">Hour of day</option>
-                  <option value="weekday">Day of week</option>
-                  <option value="day">Day</option>
-                  <option value="week">Week</option>
-                  <option value="month">Month</option>
-                  <option value="year">Year</option>
+                  <option v-for="g in ['hour', 'weekday', 'day', 'week', 'month', 'year']" :key="g" :value="g">{{ t(GRAIN_LABELS[g]) }}</option>
                 </select>
               </div>
             </div>
             <div v-if="usesGroup2" class="grid grid-cols-2 gap-2.5">
               <div class="lfield">
-                <label>{{ group2Label }}</label>
+                <label>{{ t(group2Label) }}</label>
                 <select v-model="form.group2_key">
-                  <option v-if="group2Optional" value="">None</option>
-                  <option v-else value="" disabled>Select field…</option>
-                  <optgroup label="Fields">
+                  <option v-if="group2Optional" value="">{{ t('None') }}</option>
+                  <option v-else value="" disabled>{{ t('Select field…') }}</option>
+                  <optgroup :label="t('Fields')">
                     <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
                   </optgroup>
-                  <optgroup v-if="groupRelated.length" label="Related (joined)">
+                  <optgroup v-if="groupRelated.length" :label="t('Related (joined)')">
                     <option v-for="o in groupRelated" :key="o.key" :value="o.key">{{ o.label }}</option>
                   </optgroup>
                 </select>
               </div>
               <div v-if="group2IsDate" class="lfield">
-                <label>Time grain</label>
+                <label>{{ t('Time grain') }}</label>
                 <select v-model="form.time_grain2">
-                  <option value="hour">Hour of day</option>
-                  <option value="weekday">Day of week</option>
-                  <option value="day">Day</option>
-                  <option value="month">Month</option>
+                  <option v-for="g in ['hour', 'weekday', 'day', 'month']" :key="g" :value="g">{{ t(GRAIN_LABELS[g]) }}</option>
                 </select>
               </div>
             </div>
             <div v-if="isTree && form.group2_key" class="lfield">
-              <label>Then by (level 3, optional)</label>
+              <label>{{ t('Then by (level 3, optional)') }}</label>
               <select v-model="form.group3_key">
-                <option value="">None</option>
-                <optgroup label="Fields">
+                <option value="">{{ t('None') }}</option>
+                <optgroup :label="t('Fields')">
                   <option v-for="o in groupOwn" :key="o.key" :value="o.key">{{ o.label }}</option>
                 </optgroup>
-                <optgroup v-if="groupRelated.length" label="Related (joined)">
+                <optgroup v-if="groupRelated.length" :label="t('Related (joined)')">
                   <option v-for="o in groupRelated" :key="o.key" :value="o.key">{{ o.label }}</option>
                 </optgroup>
               </select>
@@ -270,14 +253,14 @@
           </template>
 
           <div v-if="usesTarget" class="lfield">
-            <label>{{ isRings ? 'Target per ring (blank = share of total)' : 'Target' }}</label>
-            <input type="number" v-model.number="form.target" placeholder="e.g. 1000000" />
+            <label>{{ isRings ? t('Target per ring (leave blank for share of total)') : t('Target') }}</label>
+            <input type="number" v-model.number="form.target" :placeholder="t('e.g. {0}', '1000000')" />
           </div>
         </template>
 
         <template v-else>
           <div class="lfield">
-            <label>Columns</label>
+            <label>{{ t('Columns') }}</label>
             <div class="flex max-h-44 flex-col gap-1 overflow-auto rounded-[10px] p-2" style="border: 1px solid var(--border-2)">
               <label
                 v-for="f in columnFields"
@@ -292,22 +275,22 @@
           </div>
           <div class="grid grid-cols-3 gap-2.5">
             <div class="lfield" style="grid-column: span 2">
-              <label>Sort by</label>
+              <label>{{ t('Sort by') }}</label>
               <select v-model="form.sort_field">
-                <option value="modified">Last Modified</option>
+                <option value="modified">{{ t('Last modified') }}</option>
                 <option v-for="f in columnFields" :key="f.key" :value="f.key">{{ f.label }}</option>
               </select>
             </div>
             <div class="lfield">
-              <label>Order</label>
+              <label>{{ t('Order') }}</label>
               <select v-model="form.sort_order">
-                <option value="desc">Desc</option>
-                <option value="asc">Asc</option>
+                <option value="desc">{{ t('Descending') }}</option>
+                <option value="asc">{{ t('Ascending') }}</option>
               </select>
             </div>
           </div>
           <div class="lfield" style="max-width: 110px">
-            <label>Rows</label>
+            <label>{{ t('Rows') }}</label>
             <input type="number" v-model.number="form.limit" min="1" max="100" />
           </div>
         </template>
@@ -315,23 +298,23 @@
 
       <!-- appearance -->
       <div v-if="!isElement && (form.widget_type === 'Number Card' || hasAccent)" class="ins-sec">
-        <div class="ins-eyebrow">Appearance</div>
+        <div class="ins-eyebrow">{{ t('Appearance') }}</div>
         <div v-if="form.widget_type === 'Number Card'" class="lfield">
-          <label>Tint</label>
+          <label>{{ t('Tint') }}</label>
           <div class="flex items-center gap-2">
             <button
-              v-for="t in TINTS"
-              :key="t.name"
+              v-for="tint in TINTS"
+              :key="tint.name"
               class="dot"
-              :class="{ on: form.tint === t.name }"
-              :style="{ background: t.color }"
-              :title="t.name"
-              @click="form.tint = t.name"
+              :class="{ on: form.tint === tint.name }"
+              :style="{ background: tint.color }"
+              :title="t(tint.label)"
+              @click="form.tint = tint.name"
             ></button>
           </div>
         </div>
         <div v-else class="lfield">
-          <label>Color</label>
+          <label>{{ t('Color') }}</label>
           <div class="flex items-center gap-2">
             <button
               v-for="(c, i) in paletteColors"
@@ -339,7 +322,7 @@
               class="dot"
               :class="{ on: form.accent === i }"
               :style="{ background: c }"
-              :title="'Color ' + (i + 1)"
+              :title="t('Color {0}', i + 1)"
               @click="form.accent = i"
             ></button>
           </div>
@@ -348,7 +331,7 @@
 
       <!-- widget filters -->
       <div v-if="!isElement" class="ins-sec">
-        <div class="ins-eyebrow">Widget filters</div>
+        <div class="ins-eyebrow">{{ t('Widget filters') }}</div>
         <div class="flex flex-col gap-2">
           <div v-for="(f, i) in form.filters" :key="i" class="flex items-center gap-1.5">
             <select v-model="f[0]" style="flex: 2" class="ins-mini">
@@ -357,13 +340,13 @@
             <select v-model="f[1]" style="flex: 1" class="ins-mini">
               <option v-for="op in ['=', '!=', '>', '<', '>=', '<=', 'like']" :key="op" :value="op">{{ op }}</option>
             </select>
-            <input type="text" v-model="f[2]" placeholder="value" style="flex: 2" class="ins-mini" />
-            <button class="icon-x" @click="form.filters.splice(i, 1)">
+            <input type="text" v-model="f[2]" dir="auto" :placeholder="t('value')" style="flex: 2" class="ins-mini" />
+            <button class="icon-x" :title="t('Remove')" @click="form.filters.splice(i, 1)">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
             </button>
           </div>
           <button class="chip" style="align-self: flex-start; border-style: dashed" @click="form.filters.push(['', '=', ''])">
-            + Add filter
+            + {{ t('Add filter') }}
           </button>
         </div>
       </div>
@@ -373,15 +356,15 @@
     <div class="ins-foot">
       <template v-if="!canApply">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
-        <span>Pick a source{{ needsGroup ? ' and a breakdown' : '' }} to apply</span>
+        <span>{{ needsGroup ? t('Pick a source and a breakdown to apply') : t('Pick a source to apply') }}</span>
       </template>
       <template v-else-if="isElement">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
-        <span>This block carries no data, so it never loads</span>
+        <span>{{ t('This block carries no data, so it never loads') }}</span>
       </template>
       <template v-else>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.4" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
-        <span>Changes apply live on the canvas</span>
+        <span>{{ t('Changes apply live on the canvas') }}</span>
       </template>
     </div>
   </div>
@@ -392,8 +375,20 @@ import { computed, reactive, ref, watch } from 'vue'
 import { createResource } from 'frappe-ui'
 import { chartPalette, themeVersion } from '@/lib/theme'
 import { ELEMENT_PALETTE, defaultStyle, isStatic } from '@/lib/widgetTypes'
+import { t } from '@/lib/i18n'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
 import ElementIcon from '@/components/widgets/ElementIcon.vue'
+
+const AGGREGATES = ['count', 'sum', 'avg', 'min', 'max']
+const AGG_LABELS = { count: 'Count', sum: 'Sum', avg: 'Average', min: 'Minimum', max: 'Maximum' }
+const GRAIN_LABELS = {
+  hour: 'Hour of day',
+  weekday: 'Day of week',
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+  year: 'Year',
+}
 
 const props = defineProps({
   widget: { type: Object, required: true },
@@ -422,10 +417,10 @@ const WIDGET_TYPES = [
   { label: 'Table', value: 'Table' },
 ]
 const TINTS = [
-  { name: 'blue', color: '#1463FF' },
-  { name: 'green', color: '#0F9D7A' },
-  { name: 'amber', color: '#C9821B' },
-  { name: 'violet', color: '#6D4AFF' },
+  { name: 'blue', label: 'Blue', color: '#1463FF' },
+  { name: 'green', label: 'Green', color: '#0F9D7A' },
+  { name: 'amber', label: 'Amber', color: '#C9821B' },
+  { name: 'violet', label: 'Violet', color: '#6D4AFF' },
 ]
 const NO_GROUP_TYPES = ['Number Card', 'Gauge', 'Table']
 const GROUP2_TYPES = ['Heatmap', 'Radar', 'Bar Chart', 'Stacked Bar', 'Line Chart', 'Area Chart', 'Tree Report']
@@ -760,7 +755,7 @@ function elementStyle() {
 function buildConfig() {
   if (isElement.value) {
     return {
-      title: form.title || form.widget_type,
+      title: form.title || t(form.widget_type),
       widget_type: form.widget_type,
       query: {},
       style: elementStyle(),
@@ -773,7 +768,7 @@ function buildConfig() {
     if (form.target) style.target = form.target
   } else if (ACCENT_TYPES.includes(form.widget_type) && form.accent) style = { accent: form.accent }
   return {
-    title: form.title || 'Untitled',
+    title: form.title || t('Untitled'),
     widget_type: form.widget_type,
     query: buildQuery(),
     style,

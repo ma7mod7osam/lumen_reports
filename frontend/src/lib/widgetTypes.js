@@ -3,6 +3,8 @@
  * the layout elements that don't.
  */
 
+import { t } from '@/lib/i18n'
+
 /** Elements that carry no query — headings, notes, rules, pictures. */
 export const STATIC_TYPES = ['Heading', 'Text', 'Divider', 'Image']
 
@@ -63,7 +65,7 @@ export function defaultSize(type) {
 
 /** Sensible starting content so a freshly inserted element is never blank. */
 export function defaultStyle(type) {
-  if (type === 'Heading') return { text: 'Section heading', level: 1, align: 'left' }
+  if (type === 'Heading') return { text: t('Section heading'), level: 1, align: 'left' }
   if (type === 'Text') return { text: '', align: 'left', size: 'md' }
   if (type === 'Divider') return { text: '' }
   if (type === 'Image') return { url: '', fit: 'contain', framed: true }

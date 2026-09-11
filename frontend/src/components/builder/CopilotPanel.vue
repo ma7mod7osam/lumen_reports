@@ -5,9 +5,9 @@
         <path d="M12 3v2M12 19v2M5.6 5.6 7 7M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4 7 17M17 7l1.4-1.4" />
         <circle cx="12" cy="12" r="4" />
       </svg>
-      <span class="cp-title">Copilot</span>
+      <span class="cp-title">{{ t('Copilot') }}</span>
       <span class="grow"></span>
-      <button class="x" title="Close" @click="$emit('close')">
+      <button class="x" :title="t('Close')" @click="$emit('close')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
       </button>
     </div>
@@ -16,37 +16,36 @@
     <div class="scope">
       <template v-if="selected">
         <span class="scope-chip on" :title="selected.title">
-          <span class="lbl">Working on</span>
-          <b>{{ selected.title || selected.widget_type }}</b>
-          <button title="Work on the whole dashboard" @click="$emit('clear-scope')">
+          <span class="lbl">{{ t('Working on') }}</span>
+          <b dir="auto">{{ selected.title || t(selected.widget_type) }}</b>
+          <button :title="t('Work on the whole dashboard')" @click="$emit('clear-scope')">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
           </button>
         </span>
-        <button class="linkish" @click="$emit('open-inspector')">Settings</button>
+        <button class="linkish" @click="$emit('open-inspector')">{{ t('Settings') }}</button>
       </template>
       <span v-else class="scope-chip">
-        <span class="lbl">Working on</span>
-        <b>the whole dashboard</b>
+        <span class="lbl">{{ t('Working on') }}</span>
+        <b>{{ t('the whole dashboard') }}</b>
       </span>
     </div>
 
     <div ref="threadEl" class="thread">
       <!-- no key yet -->
       <div v-if="status && !status.configured" class="setup">
-        <div class="setup-t">Connect an AI key first</div>
-        <p>The copilot runs on Google Gemini with your own key. Add it once in AI settings and it works here and in Ask.</p>
-        <router-link to="/ask" class="lbtn primary sm" style="text-decoration: none">Open AI settings</router-link>
+        <div class="setup-t">{{ t('Connect an AI key first') }}</div>
+        <p>{{ t('The copilot runs on Google Gemini with your own key. Add it once in AI settings and it works here and in Ask AI.') }}</p>
+        <router-link to="/ask" class="lbtn primary sm" style="text-decoration: none">{{ t('Open AI settings') }}</router-link>
       </div>
 
       <!-- first open -->
       <div v-else-if="!messages.length" class="intro">
-        <div class="intro-t">Ask for any change to this dashboard</div>
+        <div class="intro-t">{{ t('Ask for any change to this dashboard') }}</div>
         <p>
-          Layout, colors, titles, new charts, a written summary. You see the list of
-          changes first, and one click on Undo takes the whole thing back.
+          {{ t('Layout, colors, titles, new charts, a written summary. You see the list of changes first, and one click on Undo takes the whole thing back.') }}
         </p>
         <div class="chips">
-          <button v-for="s in STARTERS" :key="s" class="chip-s" @click="send(s)">{{ s }}</button>
+          <button v-for="s in STARTERS" :key="s" class="chip-s" @click="send(t(s))">{{ t(s) }}</button>
         </div>
       </div>
 
@@ -85,16 +84,16 @@
             </div>
 
             <div v-if="m.proposal && m.state === 'proposed'" class="acts">
-              <button class="lbtn primary sm" @click="apply(m)">Apply {{ countLabel(m) }}</button>
-              <button class="lbtn sm" @click="m.state = 'discarded'">Discard</button>
+              <button class="lbtn primary sm" @click="apply(m)">{{ t('Apply ({0})', m.changes?.length || 0) }}</button>
+              <button class="lbtn sm" @click="m.state = 'discarded'">{{ t('Discard') }}</button>
             </div>
             <div v-else-if="m.state === 'applied'" class="done">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.6" stroke-linecap="round"><path d="m4.5 12.5 5 5 10-11" /></svg>
-              Applied {{ countLabel(m) }}
-              <button v-if="m.pointer === historyPointer" class="linkish" @click="undoApply(m)">Undo</button>
+              {{ t('Applied ({0})', m.changes?.length || 0) }}
+              <button v-if="m.pointer === historyPointer" class="linkish" @click="undoApply(m)">{{ t('Undo') }}</button>
             </div>
-            <div v-else-if="m.state === 'discarded'" class="done muted">Discarded, nothing changed</div>
-            <div v-else-if="m.state === 'undone'" class="done muted">Undone, the board is back as it was</div>
+            <div v-else-if="m.state === 'discarded'" class="done muted">{{ t('Discarded, nothing changed') }}</div>
+            <div v-else-if="m.state === 'undone'" class="done muted">{{ t('Undone, the board is back as it was') }}</div>
           </template>
         </div>
       </template>
@@ -115,12 +114,12 @@
         v-model="draft"
         dir="auto"
         rows="2"
-        :placeholder="selected ? 'What should change on this widget?' : 'Ask for any change to the dashboard…'"
+        :placeholder="selected ? t('What should change on this widget?') : t('Ask for any change to the dashboard…')"
         :disabled="busy || (status && !status.configured)"
         @keydown.enter.exact.prevent="send()"
       ></textarea>
-      <button class="send" type="submit" :disabled="busy || !draft.trim()" title="Send (Enter)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
+      <button class="send" type="submit" :disabled="busy || !draft.trim()" :title="t('Send (Enter)')">
+        <svg class="flip-rtl" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></svg>
       </button>
     </form>
   </div>
@@ -129,6 +128,7 @@
 <script setup>
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { call } from 'frappe-ui'
+import { t } from '@/lib/i18n'
 import '@/components/builder/controls.css'
 
 const props = defineProps({
@@ -181,18 +181,12 @@ function history() {
   })
 }
 
-function countLabel(m) {
-  const n = m.changes?.length || 0
-  if (!n) return ''
-  return n === 1 ? '1 change' : `${n} changes`
-}
-
 // the slow part of a turn is building widgets or reading numbers; say so
 function guessWork(text) {
-  const t = text.toLowerCase()
-  if (/summary|summari|ملخص/.test(t)) return 'Reading the numbers…'
-  if (/add|chart|widget|compare|اضف|أضف|رسم|قارن/.test(t)) return 'Building from your data…'
-  return 'Working on it…'
+  const lower = text.toLowerCase()
+  if (/summary|summari|ملخص/.test(lower)) return t('Reading the numbers…')
+  if (/add|chart|widget|compare|اضف|أضف|رسم|قارن/.test(lower)) return t('Building from your data…')
+  return t('Working on it…')
 }
 
 async function send(text = null, { answered = false } = {}) {
@@ -318,7 +312,8 @@ watch(() => messages.value.length, scrollDown)
   gap: 6px;
   max-width: 100%;
   min-width: 0;
-  padding: 4px 6px 4px 10px;
+  padding-block: 4px;
+  padding-inline: 10px 6px;
   border-radius: 99px;
   background: var(--panel-2);
   font-size: 11.5px;
@@ -333,7 +328,7 @@ watch(() => messages.value.length, scrollDown)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 4px;
+  padding-inline-end: 4px;
 }
 .scope-chip.on {
   background: color-mix(in srgb, var(--blue) 11%, var(--panel));
@@ -412,7 +407,7 @@ watch(() => messages.value.length, scrollDown)
   align-self: flex-end;
   background: var(--blue);
   color: #fff;
-  border-bottom-right-radius: 4px;
+  border-end-end-radius: 4px;
 }
 .bubble.bot {
   align-self: flex-start;
@@ -420,7 +415,7 @@ watch(() => messages.value.length, scrollDown)
   background: var(--panel-2);
   border: 1px solid var(--border);
   color: var(--ink-2);
-  border-bottom-left-radius: 4px;
+  border-end-start-radius: 4px;
 }
 .bubble.failed {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
@@ -549,7 +544,7 @@ watch(() => messages.value.length, scrollDown)
   animation-delay: 0.3s;
 }
 .typing span {
-  margin-left: 6px;
+  margin-inline-start: 6px;
   font-size: 11.5px;
 }
 @keyframes blink {

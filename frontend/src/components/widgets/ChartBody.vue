@@ -12,7 +12,7 @@
       <div class="prog"><i :style="{ width: Math.min(row.pct, 100) + '%', background: row.color }"></i></div>
       <div v-if="row.caption" class="pbar-c mono">{{ row.caption }}</div>
     </div>
-    <div v-if="!progressRows.length" class="pbar-empty">Nothing to show yet</div>
+    <div v-if="!progressRows.length" class="pbar-empty">{{ t('Nothing to show yet') }}</div>
   </div>
 
   <div v-else ref="chartEl" class="h-full w-full" style="min-height: 120px"></div>
@@ -23,6 +23,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { formatNumber, formatValue } from '@/lib/palette'
 import { cssv, chartPalette, themeVersion } from '@/lib/theme'
+import { axisLabel, isRtl, t } from '@/lib/i18n'
 import TreeBody from '@/components/widgets/TreeBody.vue'
 
 const props = defineProps({
@@ -72,11 +73,11 @@ const progressRows = computed(() => {
     // against a target it's progress; without one, share of the largest bar
     const pct = Math.round((target ? value / target : value / max) * 100)
     return {
-      label,
+      label: axisLabel(label, props.query?.group_by?.time_grain),
       pct,
       // running hot reads as a warning even when the bar is "full"
       color: pct >= 95 ? cssv('--danger') : pct >= 85 ? cssv('--warning') : accentColor(),
-      caption: target ? `${fmt(value)} of ${fmt(target)}` : fmt(value),
+      caption: target ? t('{0} of {1}', fmt(value), fmt(target)) : fmt(value),
     }
   })
 })
@@ -111,12 +112,18 @@ function topPairs(labels, values, max) {
   return pairs
 }
 
+// every "Other" bucket this chart has drawn, in whichever language it was
+// drawn in, so a click on one is never taken as a real value
+const otherNames = new Set()
+
 function otherLabel(count) {
-  return `Other (${count} more)`
+  const name = t('Other ({0} more)', count)
+  otherNames.add(name)
+  return name
 }
 
 function isOther(name) {
-  return typeof name === 'string' && /^Other \(\d+ more\)$/.test(name)
+  return typeof name === 'string' && otherNames.has(name)
 }
 
 function isTimeSeries() {
@@ -281,7 +288,7 @@ function buildOption() {
       running += n
     })
     // closing balance
-    const cats = [...labels, 'Total']
+    const cats = [...labels, t('Total')]
     bases.push(0)
     spans.push(Math.abs(running))
     colors.push(c1)
@@ -300,7 +307,8 @@ function buildOption() {
           const i = entries[0].dataIndex
           const raw = deltaAt(i)
           const sign = i < values.length && raw > 0 ? '+' : ''
-          return `<b>${cats[i]}</b> ${sign}${formatNumber(raw)}`
+          // the axis value is the relabelled one (Jan 2026), not the raw key
+          return `<b>${entries[0].axisValue ?? cats[i]}</b> ${sign}${formatNumber(raw)}`
         },
       },
       series: [
@@ -381,7 +389,9 @@ function buildOption() {
           left: 2,
           top: 34,
           style: {
-            text: `${up ? '▲' : '▼'} ${Math.abs(change).toFixed(1)}%${labels.length ? ` since ${labels[0]}` : ''}`,
+            text: `${up ? '▲' : '▼'} ${Math.abs(change).toFixed(1)}%${
+              labels.length ? ' ' + t('since {0}', axisLabel(labels[0], props.query?.group_by?.time_grain)) : ''
+            }`,
             fill: up ? cssv('--success') : cssv('--danger'),
             fontSize: 11.5,
             fontWeight: 700,
@@ -653,7 +663,7 @@ function buildGauge(palette) {
       ...tooltipChrome('item'),
       formatter: () =>
         target
-          ? `${formatNumber(value, { compact: value >= 100000 })} of ${formatNumber(target, { compact: target >= 100000 })}`
+          ? t('{0} of {1}', formatNumber(value, { compact: value >= 100000 }), formatNumber(target, { compact: target >= 100000 }))
           : `${Math.round(pct)}%`,
     },
     series: [
@@ -859,7 +869,7 @@ function buildRadar(palette) {
   } else {
     const pairs = topPairs(result.labels || [], result.values || [], MAX_RADAR_AXES)
     axes = pairs.map((p) => p[0])
-    webs = [{ name: 'Value', values: pairs.map((p) => p[1]) }]
+    webs = [{ name: t('Value'), values: pairs.map((p) => p[1]) }]
   }
 
   const max = Math.max(1, ...webs.flatMap((w) => w.values))
@@ -1008,7 +1018,11 @@ function buildHeatmap(palette) {
     grid: { left: 8, right: 8, top: 8, bottom: 4, containLabel: true },
     tooltip: {
       ...tooltipChrome('item'),
-      formatter: (p) => `<b>${rows[p.value[1]]} ${cols[p.value[0]]}</b> ${formatNumber(p.value[2])}`,
+      formatter: (p) => {
+        const row = axisLabel(rows[rows.length - 1 - p.value[1]], props.query?.group_by?.time_grain)
+        const col = axisLabel(cols[p.value[0]], props.query?.group_by2?.time_grain)
+        return `<b>${row} ${col}</b> ${formatNumber(p.value[2])}`
+      },
     },
     xAxis: {
       type: 'category',
@@ -1046,7 +1060,56 @@ function buildHeatmap(palette) {
 function render() {
   ensureChart()
   if (!chart) return
-  chart.setOption(buildOption(), { notMerge: true })
+  chart.setOption(localize(buildOption()), { notMerge: true })
+}
+
+/**
+ * The language pass over a finished option, so no builder has to know about
+ * it. Month and weekday labels are rewritten for reading (2026-01 becomes
+ * Jan 2026 or يناير 2026). Right to left, time runs from the right, value
+ * axes sit on the right, and anything pinned to one side moves to the other.
+ * Ordering already happened on the raw labels, so translating here cannot
+ * scramble the calendar order.
+ */
+function localize(opt) {
+  const q = props.query || {}
+  const rowGrain = q.group_by?.time_grain
+  const colGrain = q.group_by2?.time_grain
+  const heat = props.widgetType === 'Heatmap'
+  const xs = [].concat(opt.xAxis || [])
+  const ys = [].concat(opt.yAxis || [])
+  const relabel = (axis, grain) => {
+    if (grain && axis?.type === 'category' && Array.isArray(axis.data)) {
+      axis.data = axis.data.map((v) => axisLabel(v, grain))
+    }
+  }
+  xs.forEach((a) => relabel(a, heat ? colGrain : rowGrain))
+  if (heat) ys.forEach((a) => relabel(a, rowGrain))
+  if (opt.radar?.indicator && rowGrain) {
+    opt.radar.indicator = opt.radar.indicator.map((i) => ({ ...i, name: axisLabel(i.name, rowGrain) }))
+  }
+
+  if (!isRtl.value) return opt
+  xs.forEach((a) => (a.inverse = !a.inverse))
+  ys.forEach((a) => (a.position = a.position === 'right' ? 'left' : 'right'))
+  const swapSides = (o) => {
+    if (!o || typeof o !== 'object' || o.left === 'center' || o.right === 'center') return
+    if (o.left === undefined && o.right === undefined) return
+    const { left, right } = o
+    o.left = right
+    o.right = left
+  }
+  ;[].concat(opt.grid || []).forEach(swapSides)
+  ;[].concat(opt.legend || []).forEach(swapSides)
+  ;[].concat(opt.graphic || []).forEach(swapSides)
+  const FLIP = { right: 'left', left: 'right', insideRight: 'insideLeft', insideLeft: 'insideRight' }
+  ;[].concat(opt.series || []).forEach((s) => {
+    if (s.label?.position && FLIP[s.label.position]) s.label = { ...s.label, position: FLIP[s.label.position] }
+  })
+  if (opt.tooltip) {
+    opt.tooltip.extraCssText = (opt.tooltip.extraCssText || '') + 'direction:rtl;text-align:right;'
+  }
+  return opt
 }
 </script>
 

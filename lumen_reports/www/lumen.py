@@ -27,4 +27,7 @@ def get_context(context):
 		"csrf_token": frappe.sessions.get_csrf_token(),
 		"site_name": frappe.local.site,
 		"socketio_port": frappe.conf.socketio_port or 9000,
+		# the app opens in the person's Frappe language until they pick one.
+		# frappe.lang is a request-local proxy; tojson needs the plain string
+		"lumen_lang": str(frappe.local.lang or "en"),
 	}

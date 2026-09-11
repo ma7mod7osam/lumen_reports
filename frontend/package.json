@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.0.13",
+    "@fontsource/ibm-plex-sans-arabic": "5",
     "@fontsource/plus-jakarta-sans": "^5.0.20",
     "echarts": "^5.5.0",
     "frappe-ui": "^0.1.126",

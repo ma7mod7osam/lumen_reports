@@ -21,6 +21,7 @@
               :key="col.fieldname"
               :class="{ num: isNumeric(col) }"
               class="max-w-64 truncate"
+              dir="auto"
             >
               <span
                 v-if="col.fieldtype === 'Select' && badgeFor(row[col.fieldname])"
@@ -40,22 +41,23 @@
             <path d="M4 7h16M4 12h16M4 17h10" />
           </svg>
         </div>
-        <div style="font-weight: 700; color: var(--ink)">No records</div>
-        <div style="font-size: 12.5px">Nothing matches the current filters</div>
+        <div style="font-weight: 700; color: var(--ink)">{{ t('No records') }}</div>
+        <div style="font-size: 12.5px">{{ t('Nothing matches the current filters') }}</div>
       </div>
     </div>
     <div
       v-if="result && result.rows.length"
       class="mono"
-      style="border-top: 1px solid var(--border); padding-top: 9px; margin-top: 6px; text-align: right; font-size: 11px; color: var(--faint)"
+      style="border-top: 1px solid var(--border); padding-top: 9px; margin-top: 6px; text-align: end; font-size: 11px; color: var(--faint)"
     >
-      {{ result.rows.length }} OF {{ formatNumber(result.total) }} ROWS
+      {{ t('{0} of {1} rows', result.rows.length, formatNumber(result.total)) }}
     </div>
   </div>
 </template>
 
 <script setup>
 import { formatNumber } from '@/lib/palette'
+import { t } from '@/lib/i18n'
 
 defineProps({
   result: { type: Object, default: null },
@@ -87,7 +89,7 @@ function isNumeric(col) {
 }
 
 function formatCell(value, col) {
-  if (value === null || value === undefined || value === '') return '—'
+  if (value === null || value === undefined || value === '') return ''
   if (isNumeric(col)) return formatNumber(value)
   return String(value).replace(/<[^>]*>/g, '')
 }

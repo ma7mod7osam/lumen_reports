@@ -1,0 +1,173 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-09-11 17:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "dashboard",
+  "enabled",
+  "frequency",
+  "day_of_week",
+  "day_of_month",
+  "send_time",
+  "column_break_1",
+  "language",
+  "paper",
+  "include_summary",
+  "recipients",
+  "section_status",
+  "next_run",
+  "last_sent_on",
+  "last_status"
+ ],
+ "fields": [
+  {
+   "fieldname": "dashboard",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Dashboard",
+   "options": "Lumen Dashboard",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enabled"
+  },
+  {
+   "default": "Weekly",
+   "fieldname": "frequency",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Frequency",
+   "options": "Daily\nWeekly\nMonthly",
+   "reqd": 1
+  },
+  {
+   "default": "Monday",
+   "depends_on": "eval:doc.frequency=='Weekly'",
+   "fieldname": "day_of_week",
+   "fieldtype": "Select",
+   "label": "Day of Week",
+   "options": "Monday\nTuesday\nWednesday\nThursday\nFriday\nSaturday\nSunday"
+  },
+  {
+   "default": "1",
+   "depends_on": "eval:doc.frequency=='Monthly'",
+   "description": "1 to 28, so every month has the day",
+   "fieldname": "day_of_month",
+   "fieldtype": "Int",
+   "label": "Day of Month"
+  },
+  {
+   "default": "08:00:00",
+   "fieldname": "send_time",
+   "fieldtype": "Time",
+   "label": "Send Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "English",
+   "fieldname": "language",
+   "fieldtype": "Select",
+   "label": "Language",
+   "options": "English\nArabic"
+  },
+  {
+   "default": "A4",
+   "fieldname": "paper",
+   "fieldtype": "Select",
+   "label": "Paper",
+   "options": "A4\nLetter"
+  },
+  {
+   "default": "0",
+   "description": "Needs an AI key. Written separately for each recipient from their own data",
+   "fieldname": "include_summary",
+   "fieldtype": "Check",
+   "label": "Include Executive Summary"
+  },
+  {
+   "description": "Each person gets their own copy, rendered with their own permissions",
+   "fieldname": "recipients",
+   "fieldtype": "Table MultiSelect",
+   "label": "Recipients",
+   "options": "Lumen Report Recipient",
+   "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_status",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "next_run",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Next Run",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_sent_on",
+   "fieldtype": "Datetime",
+   "label": "Last Sent On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_status",
+   "fieldtype": "Small Text",
+   "label": "Last Status",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-11 17:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Lumen Reports",
+ "name": "Lumen Report Schedule",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lumen Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "if_owner": 1,
+   "read": 1,
+   "role": "Lumen Builder",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

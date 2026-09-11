@@ -6,8 +6,9 @@
           <router-link to="/" class="brand">
             <img class="tile" :src="appIcon" alt="" width="36" height="36" />
             <span>
-              <span class="wm">Lumen<b>Reports</b></span>
-              <small>ANALYTICS</small>
+              <span v-if="lang === 'ar'" class="wm">لومن <b>تقارير</b></span>
+              <span v-else class="wm">Lumen<b>Reports</b></span>
+              <small>{{ t('ANALYTICS') }}</small>
             </span>
           </router-link>
           <span class="sp" style="flex: 1"></span>
@@ -16,8 +17,16 @@
               <path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4 7 17M17 7l1.4-1.4" />
               <circle cx="12" cy="12" r="4" />
             </svg>
-            Ask AI
+            {{ t('Ask AI') }}
           </router-link>
+          <!-- each language names itself, so the switch is findable from either side -->
+          <button class="theme-btn" :title="lang === 'ar' ? 'English' : 'العربية'" @click="setLang(lang === 'ar' ? 'en' : 'ar')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+            </svg>
+            {{ lang === 'ar' ? 'English' : 'العربية' }}
+          </button>
           <button class="theme-btn" @click="toggleTheme">
             <svg v-if="theme === 'light'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
@@ -26,7 +35,7 @@
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
             </svg>
-            {{ theme === 'light' ? 'Dark' : 'Light' }}
+            {{ theme === 'light' ? t('Dark') : t('Light') }}
           </button>
         </div>
       </div>
@@ -40,11 +49,13 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { call } from 'frappe-ui'
 import { theme, toggleTheme, applyTheme } from '@/lib/theme'
+import { applyLang, lang, setLang, t } from '@/lib/i18n'
 
 applyTheme()
+applyLang()
 
 // served by Frappe from the app's public folder, not bundled — bound rather than
 // a literal src so Vite doesn't try to resolve it at build time
@@ -53,14 +64,16 @@ const appIcon = '/assets/lumen_reports/logo/svg/app-icon.svg'
 // unlicensed use should be visible rather than silent; a failure to check
 // must never keep the app from loading
 const licenseNotice = ref('')
-onMounted(async () => {
+async function loadNotice() {
   try {
-    const result = await call('lumen_reports.licensing.get_license_notice')
+    const result = await call('lumen_reports.licensing.get_license_notice', { lang: lang.value })
     licenseNotice.value = result?.notice || ''
   } catch (e) {
     licenseNotice.value = ''
   }
-})
+}
+onMounted(loadNotice)
+watch(lang, loadNotice)
 </script>
 
 <style scoped>

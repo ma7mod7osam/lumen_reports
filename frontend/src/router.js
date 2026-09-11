@@ -33,6 +33,12 @@ const routes = [
     component: () => import('@/pages/DashboardBuilder.vue'),
     props: true,
   },
+  {
+    path: '/dashboard/:slug/report',
+    name: 'DashboardReport',
+    component: () => import('@/pages/DashboardReport.vue'),
+    props: true,
+  },
 ]
 
 export default createRouter({

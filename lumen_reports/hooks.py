@@ -169,6 +169,13 @@ website_route_rules = [
 	{"from_route": "/lumen/<path:app_path>", "to_route": "lumen"},
 ]
 
+# scheduled report delivery: every ten minutes, send whatever has come due
+scheduler_events = {
+	"cron": {
+		"*/10 * * * *": ["lumen_reports.schedules.run_due"],
+	},
+}
+
 # Scheduled Tasks
 # ---------------
 

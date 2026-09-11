@@ -7,6 +7,10 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 @import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/ibm-plex-sans-arabic/400.css';
+@import '@fontsource/ibm-plex-sans-arabic/500.css';
+@import '@fontsource/ibm-plex-sans-arabic/600.css';
+@import '@fontsource/ibm-plex-sans-arabic/700.css';
 
 @tailwind base;
 @tailwind components;
@@ -97,6 +101,26 @@
 
 html {
   font-family: var(--font);
+}
+/* Arabic: the Arabic face first so every Arabic letter comes from one font,
+   with Latin and digits falling through to the brand face. No letter-spacing:
+   it pulls joined Arabic letters apart. */
+html[lang='ar'] {
+  --font: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans', -apple-system, 'Segoe UI', sans-serif;
+}
+html[lang='ar'] body {
+  letter-spacing: 0;
+}
+/* arrows that mean "back" or "forward" point the other way in Arabic */
+html[dir='rtl'] .flip-rtl {
+  transform: scaleX(-1);
+}
+html[lang='ar'] .mono,
+html[lang='ar'] [class*='eyebrow'],
+html[lang='ar'] .field .cue,
+html[lang='ar'] .tbl th {
+  letter-spacing: 0;
+  text-transform: none;
 }
 body {
   margin: 0;
@@ -364,11 +388,11 @@ body {
   color: var(--ink);
   cursor: pointer;
   outline: none;
-  padding-right: 18px;
+  padding-inline-end: 18px;
 }
 .field .chev {
   position: absolute;
-  right: 12px;
+  inset-inline-end: 12px;
   pointer-events: none;
   color: var(--faint);
 }
@@ -439,7 +463,7 @@ table.tbl {
   font-size: 13.5px;
 }
 .tbl th {
-  text-align: left;
+  text-align: start;
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -453,7 +477,7 @@ table.tbl {
 }
 .tbl th.num,
 .tbl td.num {
-  text-align: right;
+  text-align: end;
   font-variant-numeric: tabular-nums;
   font-family: var(--mono);
   font-size: 12.5px;

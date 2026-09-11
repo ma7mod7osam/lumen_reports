@@ -2,23 +2,23 @@
   <div class="studio">
     <!-- ===== studio toolbar ===== -->
     <div class="stoolbar">
-      <button class="tbtn" title="Back" @click="exit">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+      <button class="tbtn" :title="t('Back')" @click="exit">
+        <svg class="flip-rtl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
       </button>
-      <button class="stitle" title="Dashboard settings" @click="showSettings = true">
-        <span>{{ settings.title || 'Untitled dashboard' }}</span>
+      <button class="stitle" :title="t('Dashboard settings')" @click="showSettings = true">
+        <span dir="auto">{{ settings.title || t('Untitled dashboard') }}</span>
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
       </button>
-      <span v-if="settings.is_published" class="badge b-green"><span class="dot"></span>Published</span>
-      <span v-else class="badge b-amber"><span class="dot"></span>Draft</span>
+      <span v-if="settings.is_published" class="badge b-green"><span class="dot"></span>{{ t('Published') }}</span>
+      <span v-else class="badge b-amber"><span class="dot"></span>{{ t('Draft') }}</span>
 
       <span class="grow"></span>
 
-      <button class="tbtn" title="Undo (Ctrl+Z)" :disabled="!canUndo" @click="undo">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
+      <button class="tbtn" :title="t('Undo (Ctrl+Z)')" :disabled="!canUndo" @click="undo">
+        <svg class="flip-rtl" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></svg>
       </button>
-      <button class="tbtn" title="Redo (Ctrl+Shift+Z)" :disabled="!canRedo" @click="redo">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
+      <button class="tbtn" :title="t('Redo (Ctrl+Shift+Z)')" :disabled="!canRedo" @click="redo">
+        <svg class="flip-rtl" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5" /><path d="M20 9H10a6 6 0 0 0 0 12h3" /></svg>
       </button>
 
       <span class="savestate" :class="saveTone">
@@ -36,11 +36,11 @@
           <circle cx="13.5" cy="6.5" r="1.4" /><circle cx="17.5" cy="10.5" r="1.4" /><circle cx="6.5" cy="12.5" r="1.4" /><circle cx="8.5" cy="7.5" r="1.4" />
           <path d="M12 2a10 10 0 1 0 0 20c.9 0 1.6-.7 1.6-1.6 0-.4-.2-.8-.5-1.1-.3-.3-.4-.7-.4-1 0-.9.7-1.6 1.6-1.6H16a6 6 0 0 0 6-6c0-4.9-4.5-8.7-10-8.7Z" />
         </svg>
-        Theme
+        {{ t('Theme') }}
       </button>
       <button class="lbtn" @click="showSettings = true">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" /></svg>
-        Settings
+        {{ t('Settings') }}
       </button>
       <button
         class="lbtn"
@@ -49,11 +49,11 @@
         @click="toggleCopilot"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="M19 15l.9 2.6L22.5 18.5l-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15Z" /></svg>
-        Copilot
+        {{ t('Copilot') }}
       </button>
       <button v-if="settings.name" class="lbtn" @click="preview">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-        Preview
+        {{ t('Preview') }}
       </button>
       <button class="lbtn primary" :disabled="primaryDisabled" @click="primaryAction">
         {{ primaryLabel }}
@@ -62,7 +62,7 @@
 
     <div v-if="loadError" class="mx-auto max-w-3xl px-6 py-10">
       <div class="empty panel err">
-        <div style="font-weight: 700; color: var(--ink)">Couldn't load dashboard</div>
+        <div style="font-weight: 700; color: var(--ink)">{{ t("Couldn't load dashboard") }}</div>
         <div style="font-size: 12.5px">{{ loadError }}</div>
       </div>
     </div>
@@ -70,37 +70,37 @@
     <div v-else class="sbody">
       <!-- ===== insert rail ===== -->
       <div class="srail">
-        <div class="rail-eyebrow">Charts</div>
+        <div class="rail-eyebrow">{{ t('Charts') }}</div>
         <div class="rail-grid">
           <button
-            v-for="t in CHART_PALETTE"
-            :key="t.value"
+            v-for="p in CHART_PALETTE"
+            :key="p.value"
             class="rail-tile"
-            :title="'Add ' + t.label"
-            @click="addFromPalette(t.value, t.label)"
+            :title="t('Add {0}', t(p.label))"
+            @click="addFromPalette(p.value, t(p.label))"
           >
-            <ChartIcon :type="t.value" :size="16" />
-            <span>{{ t.label }}</span>
+            <ChartIcon :type="p.value" :size="16" />
+            <span>{{ t(p.label) }}</span>
           </button>
         </div>
 
-        <div class="rail-eyebrow">Elements</div>
+        <div class="rail-eyebrow">{{ t('Elements') }}</div>
         <div class="rail-grid">
           <button
-            v-for="t in ELEMENT_PALETTE"
-            :key="t.value"
+            v-for="p in ELEMENT_PALETTE"
+            :key="p.value"
             class="rail-tile"
-            :title="'Add ' + t.label"
-            @click="addFromPalette(t.value, t.label)"
+            :title="t('Add {0}', t(p.label))"
+            @click="addFromPalette(p.value, t(p.label))"
           >
-            <ElementIcon :type="t.value" :size="16" />
-            <span>{{ t.label }}</span>
+            <ElementIcon :type="p.value" :size="16" />
+            <span>{{ t(p.label) }}</span>
           </button>
         </div>
 
         <button class="rail-ai" @click="openAi()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /></svg>
-          Describe it instead
+          {{ t('Describe it instead') }}
         </button>
       </div>
 
@@ -111,9 +111,9 @@
           <div class="ic">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" /><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" /><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" /></svg>
           </div>
-          <div style="font-weight: 700; color: var(--ink)">An empty canvas</div>
-          <div style="font-size: 12.5px; margin-bottom: 10px">Pick an element from the left rail, or describe the dashboard to the copilot</div>
-          <button class="lbtn primary" @click="openAi()">Ask the copilot to draft it</button>
+          <div style="font-weight: 700; color: var(--ink)">{{ t('An empty canvas') }}</div>
+          <div style="font-size: 12.5px; margin-bottom: 10px">{{ t('Pick an element from the side rail, or describe the dashboard to the copilot') }}</div>
+          <button class="lbtn primary" @click="openAi()">{{ t('Ask the copilot to draft it') }}</button>
         </div>
 
         <!-- edit grid -->
@@ -129,20 +129,20 @@
             <!-- edit overlay: click selects, drag moves -->
             <div class="overlay" @pointerdown="onWidgetPointerDown($event, widget.widget_id)">
               <div class="tools" @pointerdown.stop>
-                <button class="tool" title="Modify with AI" style="color: var(--blue)" @click="openAi(widget)">
+                <button class="tool" :title="t('Ask the copilot about this widget')" style="color: var(--blue)" @click="openAi(widget)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /></svg>
                 </button>
-                <button class="tool" title="Duplicate (Ctrl+D)" @click="duplicateWidget(widget)">
+                <button class="tool" :title="t('Duplicate (Ctrl+D)')" @click="duplicateWidget(widget)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
                 </button>
-                <button class="tool danger" title="Remove (Del)" @click="removeWidget(widget.widget_id)">
+                <button class="tool danger" :title="t('Remove (Del)')" @click="removeWidget(widget.widget_id)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
                 </button>
               </div>
             </div>
             <!-- resize handle -->
             <div class="rz" @pointerdown.stop.prevent="startResize($event, widget.widget_id)">
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M9 1v8H1z" opacity=".5" /></svg>
+              <svg class="flip-rtl" width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M9 1v8H1z" opacity=".5" /></svg>
             </div>
           </div>
         </div>
@@ -201,6 +201,7 @@ import ElementIcon from '@/components/widgets/ElementIcon.vue'
 import ThemeScope from '@/components/ThemeScope.vue'
 import { CHART_PALETTE, ELEMENT_PALETTE, defaultSize, defaultStyle, isStatic } from '@/lib/widgetTypes'
 import { DEFAULT_THEME } from '@/lib/dashboardTheme'
+import { isRtl, t } from '@/lib/i18n'
 
 const props = defineProps({ slug: { type: String, default: '' } })
 const router = useRouter()
@@ -250,7 +251,7 @@ onMounted(async () => {
   }
   try {
     const d = await call('lumen_reports.api.get_dashboard', { slug: props.slug })
-    if (!d.can_edit) throw new Error('You do not have permission to edit this dashboard')
+    if (!d.can_edit) throw new Error(t('You do not have permission to edit this dashboard'))
     settings.name = d.name
     settings.title = d.title
     settings.slug = d.slug
@@ -619,7 +620,9 @@ function beginPointer(event, widgetId, mode) {
 function onPointerMove(event) {
   const a = active.value
   if (!a) return
-  const dCols = Math.round((event.clientX - a.startX) / (cellWidth() + GAP))
+  // in a right-to-left grid column 1 is on the right, so moving the pointer
+  // right means a lower column number
+  const dCols = Math.round((event.clientX - a.startX) / (cellWidth() + GAP)) * (isRtl.value ? -1 : 1)
   const dRows = Math.round((event.clientY - a.startY) / (ROW_H + GAP))
   const item = layout[a.id]
   if (a.mode === 'move') {
@@ -671,16 +674,16 @@ const saveTone = computed(() => {
 })
 
 const saveStateLabel = computed(() => {
-  if (saveTone.value === 'saving') return 'Saving…'
-  if (saveTone.value === 'error') return 'Save failed'
-  if (saveTone.value === 'saved') return 'Saved'
-  return 'Unsaved changes'
+  if (saveTone.value === 'saving') return t('Saving…')
+  if (saveTone.value === 'error') return t('Save failed')
+  if (saveTone.value === 'saved') return t('Saved')
+  return t('Unsaved changes')
 })
 
 const primaryLabel = computed(() => {
-  if (!settings.name) return 'Save draft'
-  if (!settings.is_published) return 'Publish'
-  return 'Save changes'
+  if (!settings.name) return t('Save draft')
+  if (!settings.is_published) return t('Publish')
+  return t('Save changes')
 })
 
 const primaryDisabled = computed(() => {
@@ -900,7 +903,7 @@ function exit() {
   max-height: calc(100vh - 118px);
   overflow-y: auto;
   padding: 14px 12px 20px;
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
   background: var(--panel);
   min-height: calc(100vh - 118px);
   display: flex;
@@ -971,7 +974,7 @@ function exit() {
   width: 312px;
   flex: none;
   height: calc(100vh - 118px);
-  border-left: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
   background: var(--panel);
 }
 .sinspector.wide {
@@ -1004,7 +1007,7 @@ function exit() {
   }
   .sinspector {
     position: fixed;
-    right: 0;
+    inset-inline-end: 0;
     top: 64px;
     bottom: 0;
     height: auto;
@@ -1051,7 +1054,7 @@ function exit() {
 .tools {
   position: absolute;
   top: 8px;
-  right: 8px;
+  inset-inline-end: 8px;
   display: flex;
   gap: 4px;
   opacity: 0;
@@ -1084,7 +1087,7 @@ function exit() {
 }
 .rz {
   position: absolute;
-  right: 3px;
+  inset-inline-end: 3px;
   bottom: 3px;
   width: 18px;
   height: 18px;
@@ -1094,6 +1097,10 @@ function exit() {
   color: var(--faint);
   cursor: nwse-resize;
   z-index: 5;
+}
+/* the handle sits in the bottom-left corner of a right-to-left card */
+html[dir='rtl'] .rz {
+  cursor: nesw-resize;
 }
 .rz:hover {
   color: var(--blue);

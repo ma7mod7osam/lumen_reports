@@ -12,14 +12,11 @@
     <template v-else-if="dashboard.data">
       <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <router-link
-            to="/"
-            class="mono"
-            style="font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); text-decoration: none"
-          >
-            ← Dashboards
+          <router-link to="/" class="mono back-link">
+            <svg class="flip-rtl" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+            {{ t('Dashboards') }}
           </router-link>
-          <h1 style="font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin-top: 4px">
+          <h1 style="font-size: 28px; font-weight: 800; letter-spacing: -0.03em; margin-top: 4px" dir="auto">
             {{ dashboard.data.title }}
           </h1>
         </div>
@@ -28,11 +25,21 @@
             v-if="dashboard.data.auto_refresh"
             class="badge"
             :class="liveConnected ? 'b-green' : 'b-gray'"
-            :title="liveConnected ? 'Widgets refresh automatically when data changes' : socketTimedOut ? 'Realtime unavailable — the websocket server could not be reached. Data still loads normally.' : 'Connecting to realtime…'"
+            :title="liveConnected ? t('Widgets refresh automatically when data changes') : socketTimedOut ? t('Live updates are unavailable because the realtime server could not be reached. Data still loads normally.') : t('Connecting to live updates…')"
           >
             <span class="dot" :class="{ 'animate-pulse': liveConnected }"></span>
-            {{ liveConnected ? 'Live' : socketTimedOut ? 'Offline' : 'Connecting…' }}
+            {{ liveConnected ? t('Live') : socketTimedOut ? t('Offline') : t('Connecting…') }}
           </span>
+          <router-link
+            :to="{ name: 'DashboardReport', params: { slug }, query: reportQuery }"
+            class="lbtn sm"
+            style="text-decoration: none"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 9V3h12v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M6 14h12v7H6z" />
+            </svg>
+            {{ t('Report') }}
+          </router-link>
           <router-link
             v-if="dashboard.data.can_edit"
             :to="{ name: 'DashboardEdit', params: { slug } }"
@@ -42,7 +49,7 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
             </svg>
-            Edit
+            {{ t('Edit') }}
           </router-link>
         </div>
       </div>
@@ -126,10 +133,19 @@ import TableWidget from '@/components/widgets/TableWidget.vue'
 import StaticBody from '@/components/widgets/StaticBody.vue'
 import { isStatic } from '@/lib/widgetTypes'
 import { getSocket } from '@/lib/socket'
+import { t } from '@/lib/i18n'
 
 const props = defineProps({ slug: { type: String, required: true } })
 
 const filterValues = ref({})
+
+// the report opens on the same filters the person is looking at
+const reportQuery = computed(() => {
+  const active = Object.fromEntries(
+    Object.entries(filterValues.value || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+  )
+  return Object.keys(active).length ? { filters: JSON.stringify(active) } : {}
+})
 const refreshKey = ref(0)
 const liveConnected = ref(false)
 const socketTimedOut = ref(false) // "Connecting…" shouldn't lie forever
@@ -265,6 +281,16 @@ function onInvalidate(message) {
 <style scoped>
 .page {
   min-height: calc(100vh - 64px);
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-decoration: none;
 }
 .lumen-grid {
   display: grid;

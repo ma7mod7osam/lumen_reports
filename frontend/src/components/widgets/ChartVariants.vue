@@ -3,8 +3,8 @@
        that expands in place (a popover would clip inside scrolling grids) -->
   <div class="vbar" @click.stop>
     <template v-if="mode === 'color'">
-      <button class="vt" title="Back" @click="mode = 'type'">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6" /></svg>
+      <button class="vt" :title="t('Back')" @click="mode = 'type'">
+        <svg class="flip-rtl" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m14 6-6 6 6 6" /></svg>
       </button>
       <button
         v-for="(c, i) in swatches"
@@ -19,16 +19,16 @@
 
     <template v-else>
       <button
-        v-for="t in choices"
-        :key="t.value"
+        v-for="c in choices"
+        :key="c.value"
         class="vt"
-        :class="{ on: widget.widget_type === t.value }"
-        :title="t.label"
-        @click="widget.widget_type = t.value"
+        :class="{ on: widget.widget_type === c.value }"
+        :title="t(c.label)"
+        @click="widget.widget_type = c.value"
       >
-        <ChartIcon :type="t.value" />
+        <ChartIcon :type="c.value" />
       </button>
-      <button v-if="swatches.length" class="vsw" title="Change colour" @click="mode = 'color'">
+      <button v-if="swatches.length" class="vsw" :title="t('Change color')" @click="mode = 'color'">
         <span class="sw" :style="{ background: swatches[activeSwatch] || swatches[0] }"></span>
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
       </button>
@@ -39,6 +39,7 @@
 <script setup>
 import { computed, ref, watch, watchEffect } from 'vue'
 import { chartPalette, themeVersion } from '@/lib/theme'
+import { t } from '@/lib/i18n'
 import ChartIcon from '@/components/widgets/ChartIcon.vue'
 
 const props = defineProps({
@@ -69,13 +70,13 @@ const MATRIX_TYPES = [
   { value: 'Line Chart', label: 'One line per series' },
   { value: 'Area Chart', label: 'Stacked area' },
   { value: 'Heatmap', label: 'Heatmap' },
-  { value: 'Radar', label: 'Radar — one web per column' },
+  { value: 'Radar', label: 'Radar, one web per column' },
 ]
 const TINTS = [
-  { name: 'blue', color: '#1463FF' },
-  { name: 'green', color: '#0F9D7A' },
-  { name: 'amber', color: '#C9821B' },
-  { name: 'violet', color: '#6D4AFF' },
+  { name: 'blue', label: 'Blue', color: '#1463FF' },
+  { name: 'green', label: 'Green', color: '#0F9D7A' },
+  { name: 'amber', label: 'Amber', color: '#C9821B' },
+  { name: 'violet', label: 'Violet', color: '#6D4AFF' },
 ]
 // charts drawn in one colour let the user pick it; categorical charts use the
 // whole palette in order, so there is nothing to choose
@@ -92,7 +93,7 @@ const ACCENT_TYPES = [
   'Heatmap',
 ]
 
-const SERIES_TYPES = new Set(TYPES.map((t) => t.value))
+const SERIES_TYPES = new Set(TYPES.map((type) => type.value))
 const shape = computed(() => props.result?.result_type || 'series')
 const isSeriesShape = computed(() => shape.value === 'series')
 const isMatrix = computed(() => shape.value === 'matrix')
@@ -147,31 +148,31 @@ const matrixRules = computed(() => {
 // still lists every type for deliberate building
 const choices = computed(() => {
   if (isSeriesShape.value && seriesType.value) {
-    const list = TYPES.filter((t) => rules.value.allowed.includes(t.value))
+    const list = TYPES.filter((type) => rules.value.allowed.includes(type.value))
     return list.length > 1 ? list : []
   }
   if (isMatrix.value) {
-    const list = MATRIX_TYPES.filter((t) => matrixRules.value.allowed.includes(t.value))
+    const list = MATRIX_TYPES.filter((type) => matrixRules.value.allowed.includes(type.value))
     return list.length > 1 ? list : []
   }
   return []
 })
 
 const swatches = computed(() => {
-  if (isTint.value) return TINTS.map((t) => t.color)
+  if (isTint.value) return TINTS.map((tint) => tint.color)
   return ACCENT_TYPES.includes(props.widget.widget_type) ? palette.value : []
 })
 const activeSwatch = computed(() =>
   isTint.value
     ? Math.max(
         0,
-        TINTS.findIndex((t) => t.name === (props.widget.style?.tint || props.defaultTint))
+        TINTS.findIndex((tint) => tint.name === (props.widget.style?.tint || props.defaultTint))
       )
     : props.widget.style?.accent || 0
 )
 
 function swatchTitle(i) {
-  return isTint.value ? TINTS[i].name : `Colour ${i + 1}`
+  return isTint.value ? t(TINTS[i].label) : t('Color {0}', i + 1)
 }
 function pickSwatch(i) {
   const style = { ...(props.widget.style || {}) }
@@ -230,8 +231,8 @@ watchEffect(() => {
 }
 .vsw {
   height: 22px;
-  padding: 0 5px 0 4px;
-  margin-left: auto;
+  padding-inline: 4px 5px;
+  margin-inline-start: auto;
   border-radius: 7px;
   border: 1px solid var(--border);
   background: var(--panel);
