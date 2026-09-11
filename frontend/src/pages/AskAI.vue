@@ -444,7 +444,7 @@ async function saveKey() {
     keyInput.value = ''
     showSettings.value = false
   } catch (e) {
-    alert(e.messages?.[0] || e.message || e)
+    alert(t(e.messages?.[0] || e.message || String(e)))
   } finally {
     savingKey.value = false
   }
@@ -466,7 +466,7 @@ async function saveSiteKey() {
     siteKeyInput.value = ''
     showSettings.value = false
   } catch (e) {
-    alert(e.messages?.[0] || e.message || e)
+    alert(t(e.messages?.[0] || e.message || String(e)))
   } finally {
     savingSiteKey.value = false
   }
@@ -504,7 +504,7 @@ async function ask(promptText = null, isAnswer = false) {
       history.value.push({ role: 'assistant', text: `Built: ${response.title}` })
     }
   } catch (e) {
-    askError.value = e.messages?.[0] || e.message || String(e)
+    askError.value = t(e.messages?.[0] || e.message || String(e))
   } finally {
     asking.value = false
   }
@@ -550,7 +550,7 @@ async function followUp(text) {
     followUpText.value = ''
     pinnedSlug.value = '' // board changed since last save
   } catch (e) {
-    followUpError.value = e.messages?.[0] || e.message || String(e)
+    followUpError.value = t(e.messages?.[0] || e.message || String(e))
   } finally {
     followingUp.value = false
   }
@@ -563,7 +563,7 @@ async function saveResult(payload, mode) {
     const saved = await call('lumen_reports.ai.save_ai_result', payload)
     pinnedSlug.value = saved.slug
   } catch (e) {
-    pinError.value = e.messages?.[0] || e.message || String(e)
+    pinError.value = t(e.messages?.[0] || e.message || String(e))
   } finally {
     pinning.value = ''
   }

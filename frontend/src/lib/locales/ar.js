@@ -464,4 +464,31 @@ export default {
   'Adding…': 'جار الإضافة…',
   'Saved. Open the dashboard': 'تم الحفظ. افتح اللوحة',
   'New question': 'سؤال جديد',
+
+  // ---- AI errors. The server writes these as whole sentences, with no model
+  // name or status code inside, so they can be translated here.
+  'Gemini is busy right now and did not answer. Wait a minute and try again, or pick another model in AI settings.':
+    'Gemini مزدحم الآن ولم يستجب. انتظر دقيقة وحاول مرة أخرى، أو اختر نموذجا آخر من إعدادات الذكاء الاصطناعي.',
+  "Google's quota for this key is used up for today. Quotas reset daily. Try again later, add a personal key in AI settings, or upgrade the key's plan.":
+    'انتهت حصة هذا المفتاح لدى Google لهذا اليوم. تتجدد الحصص يوميا. حاول لاحقا، أو أضف مفتاحا شخصيا في إعدادات الذكاء الاصطناعي، أو ارفع خطة المفتاح.',
+  'AI settings point at a model this key cannot use. Pick another model in AI settings.':
+    'تشير إعدادات الذكاء الاصطناعي إلى نموذج لا يستطيع هذا المفتاح استخدامه. اختر نموذجا آخر من الإعدادات.',
+  'Add a Gemini API key in AI settings first': 'أضف مفتاح Gemini في إعدادات الذكاء الاصطناعي أولا',
+  'The AI returned an unreadable response. Try rephrasing your question.':
+    'تعذر فهم رد الذكاء الاصطناعي. جرب صياغة السؤال بطريقة أخرى.',
+  'The AI returned an unreadable response. Try rephrasing.':
+    'تعذر فهم رد الذكاء الاصطناعي. جرب صياغة الطلب بطريقة أخرى.',
+  'The AI could not identify relevant data for that question.':
+    'تعذر على الذكاء الاصطناعي تحديد بيانات مناسبة لهذا السؤال.',
+  "You don't have access to the data needed for that question.":
+    'ليست لديك صلاحية الوصول إلى البيانات اللازمة لهذا السؤال.',
+  'Describe the change first': 'صف التغيير أولا',
+  'Not permitted to edit this dashboard': 'ليست لديك صلاحية تعديل هذه اللوحة',
+  'Added an executive summary': 'أضيف ملخص تنفيذي',
+  'The theme change did not name anything the theme panel offers.':
+    'لم يذكر طلب تغيير السمة أي خيار من خيارات لوحة السمات.',
+  'No widget could be built for that request.': 'تعذر بناء أي عنصر لهذا الطلب.',
+  'There was not enough data on the board to write a summary from.':
+    'لا توجد بيانات كافية في اللوحة لكتابة ملخص.',
+  'There is no data on this board to read yet.': 'لا توجد بيانات في هذه اللوحة لقراءتها بعد.',
 }

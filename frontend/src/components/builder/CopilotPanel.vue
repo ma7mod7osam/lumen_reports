@@ -70,7 +70,7 @@
             </ul>
 
             <ul v-if="m.notes?.length" class="notes" dir="auto">
-              <li v-for="(n, ni) in m.notes" :key="ni">{{ n }}</li>
+              <li v-for="(n, ni) in m.notes" :key="ni">{{ t(n) }}</li>
             </ul>
 
             <div v-if="m.analysis" class="ana" dir="auto">
@@ -221,7 +221,9 @@ async function send(text = null, { answered = false } = {}) {
       })
     }
   } catch (e) {
-    messages.value.push({ role: 'assistant', error: e.messages?.[0] || e.message || String(e) })
+    // server messages a person is meant to act on are whole sentences, so they
+    // translate like any other string in the interface
+    messages.value.push({ role: 'assistant', error: t(e.messages?.[0] || e.message || String(e)) })
   } finally {
     busy.value = false
     scrollDown()

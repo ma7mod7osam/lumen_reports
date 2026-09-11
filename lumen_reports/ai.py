@@ -11,6 +11,7 @@ Gemini API key (encrypted); calls are made server-side with that key.
 """
 
 import json
+import time
 
 import frappe
 import requests
@@ -411,6 +412,19 @@ def _scrub(text: str, key: str) -> str:
 # quota for the calls where quality actually shows.
 FALLBACK_MODEL = "gemini-flash-lite-latest"
 
+# Google answers an overloaded model with 503 and a "high demand" message. That
+# is its capacity, not our quota, so the documented cure is to wait and retry,
+# then to move to another model, which draws on a different pool. The waits are
+# short because someone is watching a spinner while we sleep.
+TRANSIENT_STATUSES = (500, 502, 503, 504)
+RETRY_WAITS = (1.5, 4.0)
+
+# Tried in order when the chosen model stays busy. The pinned ones are a
+# generation behind, which is exactly why they still have room: a "-latest"
+# alias is hot-swapped on every release, and a fresh release is when overload
+# is worst.
+ALTERNATE_MODELS = (FALLBACK_MODEL, "gemini-2.5-flash", "gemini-2.5-flash-lite")
+
 
 def _routine_model(model: str) -> str:
 	"""Model for the low-stakes calls (doctype picking, analysis digests)."""
@@ -418,6 +432,22 @@ def _routine_model(model: str) -> str:
 
 
 class _RateLimited(Exception):
+	def __init__(self, detail):
+		self.detail = detail
+		super().__init__(detail)
+
+
+class _Busy(Exception):
+	"""Google has no capacity for this model at this moment. Retrying helps."""
+
+	def __init__(self, detail):
+		self.detail = detail
+		super().__init__(detail)
+
+
+class _NoSuchModel(Exception):
+	"""This key cannot call that model, so the chain skips over it."""
+
 	def __init__(self, detail):
 		self.detail = detail
 		super().__init__(detail)
@@ -452,6 +482,10 @@ def _generate_once(prompt: str, key: str, model: str) -> dict:
 			frappe.throw(_("Your Gemini API key was rejected. Check it in AI settings. ({0})").format(detail))
 		if response.status_code == 429:
 			raise _RateLimited(detail or "quota exceeded")
+		if response.status_code == 404:
+			raise _NoSuchModel(detail or model)
+		if response.status_code in TRANSIENT_STATUSES:
+			raise _Busy(detail or "the model is overloaded")
 		frappe.throw(_("Gemini API error {0}: {1}").format(response.status_code, detail))
 
 	try:
@@ -462,23 +496,58 @@ def _generate_once(prompt: str, key: str, model: str) -> dict:
 
 
 def _generate(prompt: str, key: str, model: str) -> dict:
-	"""_generate_once, but a dry quota degrades to the fallback model instead
-	of killing the whole ask."""
-	try:
-		return _generate_once(prompt, key, model)
-	except _RateLimited as first:
-		if model != FALLBACK_MODEL:
+	"""_generate_once, hardened against the two refusals Google hands out under
+	load: a dry daily quota (429) and an overloaded model (503). Both step
+	sideways to another model rather than killing the whole request.
+
+	The messages a person ends up reading carry no model names or status codes,
+	so the interface can translate them as whole sentences.
+	"""
+	chain = [model] + [m for m in ALTERNATE_MODELS if m != model]
+	problem = None
+
+	for position, candidate in enumerate(chain):
+		# only the model the user actually chose is worth waiting for. An
+		# alternate that is also busy gets one try, so a bad minute at Google
+		# costs seconds rather than a minute of staring at a spinner
+		waits = RETRY_WAITS if position == 0 else ()
+		for attempt in range(len(waits) + 1):
 			try:
-				return _generate_once(prompt, key, FALLBACK_MODEL)
-			except _RateLimited as second:
-				first = second
+				return _generate_once(prompt, key, candidate)
+			except _Busy as busy:
+				problem = busy
+				if attempt < len(waits):
+					time.sleep(waits[attempt])
+					continue
+			except _RateLimited as limited:
+				# per model and per day, so waiting cannot help. Change model.
+				problem = limited
+			except _NoSuchModel as missing:
+				if position == 0:
+					# not a capacity problem: the setting itself is wrong
+					frappe.throw(
+						_(
+							"AI settings point at a model this key cannot use. Pick another "
+							"model in AI settings."
+						),
+						title=_("Unknown model"),
+					)
+				problem = problem or missing
+			break
+
+	if isinstance(problem, _RateLimited):
 		frappe.throw(
 			_(
-				"Google's free-tier quota for this key is used up for today (both {0} and "
-				"the {1} fallback). Quotas reset daily — try again later, add a personal "
-				"key in AI settings, or upgrade the key's plan. ({2})"
-			).format(model, FALLBACK_MODEL, first.detail)
+				"Google's quota for this key is used up for today. Quotas reset daily. Try "
+				"again later, add a personal key in AI settings, or upgrade the key's plan."
+			)
 		)
+	frappe.throw(
+		_(
+			"Gemini is busy right now and did not answer. Wait a minute and try again, or "
+			"pick another model in AI settings."
+		)
+	)
 
 
 # ---------------------------------------------------------------- metadata
