@@ -232,6 +232,9 @@ Using the app requires a valid subscription or purchase. You may modify it for u
 your own licensed sites. You may not distribute it, in original or modified form. See
 [`license.txt`](license.txt) for the full terms.
 
+"Lumen Reports" and the Lumen Reports logo are trademarks of Lumen Solutions and are not
+covered by any code licence. See [`TRADEMARKS.md`](TRADEMARKS.md).
+
 Third-party open-source components retain their own licences. The bundled fonts (Plus
 Jakarta Sans, IBM Plex Sans Arabic, IBM Plex Mono) are under the SIL Open Font
 License, included next to them in `lumen_reports/public/fonts/`.

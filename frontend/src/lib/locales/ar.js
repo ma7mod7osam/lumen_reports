@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Lumen Solutions. All rights reserved.
+// SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+// Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 // Arabic strings, keyed by the English text they replace.
 //
 // Formal Arabic, no diacritics, no dashes as punctuation, Western digits.

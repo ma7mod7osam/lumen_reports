@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Lumen Solutions. All rights reserved.
+// SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+// Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 /**
  * What a widget can be, in one place: the data widgets that run a query and
  * the layout elements that don't.

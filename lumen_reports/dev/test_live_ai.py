@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 # Dev helper: run ask_ai with the stored key and show the real error if any.
 # bench --site <site> execute lumen_reports.dev.test_live_ai.run --kwargs "{'prompt': '...'}"
 

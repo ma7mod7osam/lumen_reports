@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 # Copyright (c) 2026, Lumen and contributors
 # Dev test: the studio copilot's operation simulator, with the model scripted.
 # bench --site <site> execute lumen_reports.dev.test_copilot.run

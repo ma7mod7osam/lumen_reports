@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2026 Lumen Solutions. All rights reserved.
+     SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+     Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <!-- one glyph per widget type, shared by the variant bar and the wizard chips -->
   <svg v-if="type === 'Bar Chart'" :width="size" :height="size" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="4.5" height="9" rx="1" /><rect x="10" y="5" width="4.5" height="16" rx="1" /><rect x="17" y="9" width="4.5" height="12" rx="1" /></svg>

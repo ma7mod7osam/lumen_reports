@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Lumen Solutions. All rights reserved.
+// SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+// Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 // Number formatting helpers. Chart colors live in theme.js (read from CSS
 // variables at draw time so they follow the light/dark theme).
 // Digits are always Western: the formatters are pinned to 'en' in both languages.

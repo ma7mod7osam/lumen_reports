@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2026 Lumen Solutions. All rights reserved.
+     SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+     Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <!-- stays one row: only the forms that suit this data, plus a colour swatch
        that expands in place (a popover would clip inside scrolling grids) -->

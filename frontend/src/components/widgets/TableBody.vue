@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2026 Lumen Solutions. All rights reserved.
+     SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+     Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <div class="flex h-full flex-col">
     <div class="min-h-0 flex-1 overflow-auto">

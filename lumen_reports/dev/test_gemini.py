@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 """Gemini connection checks.
 
 `ping` and `models` need a key on the site and talk to Google. `chain` needs

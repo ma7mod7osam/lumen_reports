@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 # Dev helper: build a dashboard holding one widget of every chart type, so the
 # renderers can be eyeballed (and DOM-checked) against real data in one place.
 # bench --site <site> execute lumen_reports.dev.gallery.run

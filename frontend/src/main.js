@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Lumen Solutions. All rights reserved.
+// SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+// Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 import { createApp } from 'vue'
 import { setConfig, frappeRequest, resourcesPlugin } from 'frappe-ui'
 import App from './App.vue'

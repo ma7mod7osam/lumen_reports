@@ -1,3 +1,6 @@
+<!-- Copyright (c) 2026 Lumen Solutions. All rights reserved.
+     SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+     Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <!-- glyphs for the layout elements, drawn to match ChartIcon's weight -->
   <svg v-if="type === 'Heading'" :width="size" :height="size" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1.6" /><rect x="3" y="11" width="12" height="2.6" rx="1.3" opacity="0.5" /><rect x="3" y="16.4" width="15" height="2.6" rx="1.3" opacity="0.5" /></svg>

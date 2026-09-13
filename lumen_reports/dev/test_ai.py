@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 # Dev test for Ask AI: mocks the Gemini call to prove the orchestration,
 # validation, repair loop, pruning, and persistence work without a real key.
 # bench --site <site> execute lumen_reports.dev.test_ai.run

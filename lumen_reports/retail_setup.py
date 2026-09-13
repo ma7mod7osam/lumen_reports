@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 # Development helper: stand up a retail ERPNext company + demo data on a site
 # whose ERPNext setup wizard was never run. Replicates the wizard's ERPNext
 # stage step by step (fixtures -> fiscal year -> company -> defaults -> demo).

@@ -1,7 +1,7 @@
 [project]
 name = "lumen_reports"
 authors = [
-    { name = "Lumen", email = "mhusam.b@gmail.com"}
+    { name = "Lumen Solutions", email = "hello@lumen-solutions.co" }
 ]
 description = "Beautiful, fast, live-updating reports and dashboards for Frappe"
 requires-python = ">=3.10"

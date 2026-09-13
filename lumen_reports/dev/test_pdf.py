@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 # Copyright (c) 2026, Lumen and contributors
 # Dev check: render a dashboard to PDF and write it where it can be inspected.
 # bench --site <site> execute lumen_reports.dev.test_pdf.render --kwargs "{'slug': 'retail-sales', 'lang': 'ar'}"

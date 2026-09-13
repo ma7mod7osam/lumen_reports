@@ -1,8 +1,11 @@
+# Copyright (c) 2026 Lumen Solutions. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-Lumen-Proprietary
+# Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 app_name = "lumen_reports"
 app_title = "Lumen Reports"
-app_publisher = "Mahmoud Hosam"
+app_publisher = "Lumen Solutions"
 app_description = "Beautiful, fast, live-updating dashboards and reports for Frappe — with a no-code builder and plain-English Ask AI"
-app_email = "mhusam.b@gmail.com"
+app_email = "hello@lumen-solutions.co"
 app_license = "Proprietary"
 app_logo_url = "/assets/lumen_reports/logo/svg/app-icon.svg"
 required_apps = []  # ERPNext optional; supports Frappe v15 and v16 (see pyproject.toml)
