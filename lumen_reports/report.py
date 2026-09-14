@@ -773,7 +773,11 @@ def _filters_line(doc, filter_values, lang):
 	for key, value in (filter_values or {}).items():
 		if value in (None, "", [], "__all__") or key not in defs:
 			continue
-		parts.append(f"{defs[key].get('label') or key}: {value}")
+		label = defs[key].get("label") or key
+		if isinstance(value, (list, tuple)) and len(value) == 2:
+			parts.append(_t(lang, "range").format(label, value[0], value[1]))
+		else:
+			parts.append(f"{label}: {value}")
 	return " · ".join(parts) if parts else _t(lang, "all_data")
 
 

@@ -214,7 +214,7 @@ const filtersLabel = computed(() => {
   const byName = Object.fromEntries(filterDefs.value.map((f) => [f.name, f.label || f.name]))
   return Object.entries(filterValues)
     .filter(([, v]) => v !== '' && v !== null && v !== undefined)
-    .map(([k, v]) => `${byName[k] || k}: ${v}`)
+    .map(([k, v]) => `${t(byName[k] || k)}: ${Array.isArray(v) ? v.join(` ${t('to')} `) : v}`)
     .join(' · ')
 })
 

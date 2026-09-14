@@ -4,16 +4,23 @@
 <template>
   <div class="fbar">
     <template v-for="filter in filters" :key="filter.name">
+      <!-- Date range: presets or two dates -->
+      <DateRangeFilter
+        v-if="filter.fieldtype === 'Date Range'"
+        :filter="filter"
+        :value="modelValue[filter.name] ?? null"
+        @update="(v) => update(filter.name, v)"
+      />
       <!-- Link: searchable value picker -->
       <LinkFilter
-        v-if="filter.fieldtype === 'Link'"
+        v-else-if="filter.fieldtype === 'Link'"
         :filter="filter"
         :value="modelValue[filter.name] ?? ''"
         @update="(v) => update(filter.name, v)"
       />
       <!-- Select / Check: native dropdown -->
       <label v-else class="field">
-        <span class="cue">{{ filter.label }}</span>
+        <span class="cue">{{ t(filter.label) }}</span>
         <select
           :value="modelValue[filter.name] ?? ''"
           @change="(e) => update(filter.name, e.target.value)"
@@ -44,6 +51,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import DateRangeFilter from '@/components/DateRangeFilter.vue'
 import LinkFilter from '@/components/LinkFilter.vue'
 import { t } from '@/lib/i18n'
 

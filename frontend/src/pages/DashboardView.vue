@@ -4,7 +4,7 @@
 <template>
   <!-- the dashboard's own theme paints the page it lives on, so a board can
        look nothing like the one next to it -->
-  <ThemeScope :theme="dashboard.data?.theme" paint class="page">
+  <ThemeScope :theme="dashboard.data?.theme" paint class="page" :class="{ embed }">
     <div class="mx-auto max-w-7xl px-6 py-8">
     <div v-if="dashboard.loading" class="flex flex-col gap-[18px]">
       <div class="skel" style="height: 34px; width: 280px"></div>
@@ -15,7 +15,7 @@
     <template v-else-if="dashboard.data">
       <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <router-link to="/" class="mono back-link">
+          <router-link v-if="!embed" to="/" class="mono back-link">
             <svg class="flip-rtl" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
             {{ t('Dashboards') }}
           </router-link>
@@ -34,6 +34,7 @@
             {{ liveConnected ? t('Live') : socketTimedOut ? t('Offline') : t('Connecting…') }}
           </span>
           <router-link
+            v-if="!embed"
             :to="{ name: 'DashboardReport', params: { slug }, query: reportQuery }"
             class="lbtn sm"
             style="text-decoration: none"
@@ -44,7 +45,7 @@
             {{ t('Report') }}
           </router-link>
           <router-link
-            v-if="dashboard.data.can_edit"
+            v-if="dashboard.data.can_edit && !embed"
             :to="{ name: 'DashboardEdit', params: { slug } }"
             class="lbtn sm"
             style="text-decoration: none"
@@ -128,6 +129,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createResource } from 'frappe-ui'
+import { useRoute } from 'vue-router'
 import FilterBar from '@/components/FilterBar.vue'
 import ThemeScope from '@/components/ThemeScope.vue'
 import NumberCard from '@/components/widgets/NumberCard.vue'
@@ -136,9 +138,29 @@ import TableWidget from '@/components/widgets/TableWidget.vue'
 import StaticBody from '@/components/widgets/StaticBody.vue'
 import { isStatic } from '@/lib/widgetTypes'
 import { getSocket } from '@/lib/socket'
-import { t } from '@/lib/i18n'
+import { applyLang, lang, t } from '@/lib/i18n'
+import { applyTheme, theme, themeVersion } from '@/lib/theme'
+import { defaultFilterValues } from '@/lib/dateRanges'
 
-const props = defineProps({ slug: { type: String, required: true } })
+const props = defineProps({
+  slug: { type: String, required: true },
+  embed: { type: Boolean, default: false },
+})
+
+// embedded in another app's page, the host picks language and theme for this
+// view only, so nothing is written to the person's stored preferences
+if (props.embed) {
+  const route = useRoute()
+  if (route.query.lang === 'ar' || route.query.lang === 'en') {
+    lang.value = route.query.lang
+    applyLang()
+  }
+  if (route.query.theme === 'light' || route.query.theme === 'dark') {
+    theme.value = route.query.theme
+    applyTheme()
+    themeVersion.value += 1
+  }
+}
 
 const filterValues = ref({})
 
@@ -264,7 +286,17 @@ onMounted(() => {
 })
 
 // the dashboard definition arrives async — subscribe once its widgets are known
-watch(() => dashboard.data, () => subscribeDoctypes())
+watch(
+  () => dashboard.data,
+  (data) => {
+    subscribeDoctypes()
+    // filters with a default (a date range starting on this month) apply before
+    // the first widget loads, so nothing is fetched twice
+    if (data && !Object.keys(filterValues.value).length) {
+      filterValues.value = defaultFilterValues(data.filters)
+    }
+  }
+)
 
 onBeforeUnmount(() => {
   socket?.off('lumen_reports:invalidate', onInvalidate)
@@ -284,6 +316,9 @@ function onInvalidate(message) {
 <style scoped>
 .page {
   min-height: calc(100vh - 64px);
+}
+.page.embed {
+  min-height: 100vh;
 }
 .back-link {
   display: inline-flex;

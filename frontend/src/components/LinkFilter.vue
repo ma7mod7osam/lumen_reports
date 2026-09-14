@@ -3,7 +3,7 @@
      Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <div ref="root" class="field" style="cursor: text; position: relative" @click="open">
-    <span class="cue">{{ filter.label }}</span>
+    <span class="cue">{{ t(filter.label) }}</span>
     <input
       ref="input"
       :value="display"

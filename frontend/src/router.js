@@ -42,6 +42,15 @@ const routes = [
     component: () => import('@/pages/DashboardReport.vue'),
     props: true,
   },
+  {
+    // for another app's page, such as LumenPOS Insights: the dashboard without
+    // the app's header, navigation or edit controls
+    path: '/embed/:slug',
+    name: 'DashboardEmbed',
+    component: () => import('@/pages/DashboardView.vue'),
+    props: (route) => ({ slug: route.params.slug, embed: true }),
+    meta: { embed: true },
+  },
 ]
 
 export default createRouter({

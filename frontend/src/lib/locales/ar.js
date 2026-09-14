@@ -494,4 +494,23 @@ export default {
   'There was not enough data on the board to write a summary from.':
     'لا توجد بيانات كافية في اللوحة لكتابة ملخص.',
   'There is no data on this board to read yet.': 'لا توجد بيانات في هذه اللوحة لقراءتها بعد.',
+
+  // ---- date range filter and dashboard filter labels
+  'All dates': 'كل التواريخ',
+  Today: 'اليوم',
+  Yesterday: 'أمس',
+  'Last 7 days': 'آخر 7 أيام',
+  'This month': 'هذا الشهر',
+  'Last month': 'الشهر الماضي',
+  'Last 30 days': 'آخر 30 يوما',
+  'This year': 'هذا العام',
+  'Custom range': 'نطاق مخصص',
+  From: 'من',
+  To: 'إلى',
+  to: 'إلى',
+  Date: 'التاريخ',
+  Outlet: 'نقطة البيع',
+  Customer: 'العميل',
+  'Payment method': 'طريقة الدفع',
+  Item: 'الصنف',
 }

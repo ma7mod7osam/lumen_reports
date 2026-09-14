@@ -3,7 +3,7 @@
      Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <div class="min-h-screen">
-    <header class="hd">
+    <header v-if="!embed" class="hd">
       <div class="mx-auto max-w-7xl px-6">
         <div class="row">
           <router-link to="/" class="brand">
@@ -52,13 +52,19 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { call } from 'frappe-ui'
 import { theme, toggleTheme, applyTheme } from '@/lib/theme'
 import { applyLang, lang, setLang, t } from '@/lib/i18n'
 
 applyTheme()
 applyLang()
+
+// inside another app's page the host has its own header. The path check covers
+// the first paint, before the router has resolved the route
+const route = useRoute()
+const embed = computed(() => Boolean(route.meta.embed) || window.location.pathname.startsWith('/lumen/embed/'))
 
 // served by Frappe from the app's public folder, not bundled — bound rather than
 // a literal src so Vite doesn't try to resolve it at build time

@@ -80,8 +80,9 @@ business, built on the doctypes you already have.
 
 **Reading and sharing**
 
-- **Dashboard filters.** Select, Link (searchable), Checkbox and **line-item**
-  filters, all combined with AND.
+- **Dashboard filters.** Select, Link (searchable), Checkbox, **date range**
+  (presets such as today or this month, or two dates) and **line-item** filters, all
+  combined with AND. A date range can start from a default preset.
 - **Cross-filtering.** Click any chart segment to refocus every other widget, across
   document and line-item grain. Dimensions stack, each with a removable chip.
 - **Related fields (one-hop joins).** Report on attributes pulled *live* from linked
@@ -205,8 +206,32 @@ rows.
 | `report.py` | PDF rendering (WeasyPrint), English and Arabic |
 | `schedules.py` | Schedule runner (scheduler cron, every 10 minutes) and delivery as each recipient |
 | `licensing.py` | Frappe Cloud subscription check, cached, and never blocking reads |
+| `integrations/lumenpos.py` | LumenPOS Insights contract: read-only status, one-time dashboard setup, embed URL |
 | `frontend/` | Vue 3 + Vite + frappe-ui + ECharts SPA served at `/lumen` |
 | `lumen_reports/dev/` | Developer verification helpers, not part of the product surface |
+
+## LumenPOS Insights (integration)
+
+LumenPOS can show a POS sales dashboard from Lumen Reports inside the POS. The two
+apps meet only at runtime, through the calls below, and neither imports the other.
+
+| Call | What it does |
+|---|---|
+| `lumen_reports.integrations.lumenpos.get_status` (GET) | Read-only state for the POS page: `contract`, `license`, `dashboard_exists`, `can_view`, `can_create`, `reason` (`needs_erpnext`, `not_set_up`, `needs_role`, `not_in_audience`, or empty when ready), `slug`, `url`, `embed_url` |
+| `lumen_reports.integrations.lumenpos.ensure_dashboard` (POST, optional `lang`) | Creates the `lumenpos-sales` dashboard once and never overwrites it. Returns `status: ready`, or a refusal with a `message`: `needs_erpnext`, `license_expired`, `not_permitted`, `not_available` |
+
+- **Embed** at `/lumen/embed/<slug>`, optionally with `?lang=en|ar` and
+  `?theme=light|dark`. It shows the dashboard with its filters and live updates,
+  without the app header, navigation or edit controls.
+- **Access** is unchanged. The viewer needs a Lumen role, and **Lumen Restricted
+  Viewer** is enough: the dashboard names `LumenPOS Manager` as its audience, so that
+  viewer sees this dashboard and nothing else. The numbers still need read permission
+  on POS Invoice.
+- **Setup** needs Lumen Builder, Lumen Manager or System Manager, so call
+  `ensure_dashboard` from an administrator's action.
+- **Data** comes from submitted POS Invoices only, so sales consolidated into Sales
+  Invoices when a register closes are not counted twice.
+- Contract version 1. Checks: `bench --site <site> execute lumen_reports.dev.test_lumenpos.run`.
 
 ## Optional: demo data
 
