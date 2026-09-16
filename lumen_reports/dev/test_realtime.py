@@ -10,7 +10,7 @@ from lumen_reports import realtime
 
 
 def run():
-	frappe.cache.delete_value(realtime.REGISTRY_CACHE_KEY)
+	frappe.cache().delete_value(realtime.REGISTRY_CACHE_KEY)
 	registry = realtime.get_registry()
 
 	# saving a ToDo must run the on_change hook without raising

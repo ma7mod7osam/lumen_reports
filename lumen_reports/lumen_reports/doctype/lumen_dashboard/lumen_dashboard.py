@@ -42,7 +42,7 @@ class LumenDashboard(Document):
 
 	def on_update(self):
 		# widget queries may have changed; rebuild the doctype -> dashboard registry
-		frappe.cache.delete_value("lumen_reports:doctype_registry")
+		frappe.cache().delete_value("lumen_reports:doctype_registry")
 
 	def on_trash(self):
-		frappe.cache.delete_value("lumen_reports:doctype_registry")
+		frappe.cache().delete_value("lumen_reports:doctype_registry")

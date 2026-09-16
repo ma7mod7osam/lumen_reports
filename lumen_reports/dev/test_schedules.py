@@ -163,7 +163,7 @@ def run():
 		results["tick_moved_next_run_forward"] = frappe.db.get_value("Lumen Report Schedule", doc.name, "next_run") > started
 
 		# a test send goes only to the person asking, with a cooldown
-		frappe.cache.delete_value(f"lumen_report_test|{BUILDER}")
+		frappe.cache().delete_value(f"lumen_report_test|{BUILDER}")
 		frappe.set_user(BUILDER)
 		with (
 			mock.patch.object(schedules, "outgoing_ready", return_value=True),
@@ -178,7 +178,7 @@ def run():
 			except frappe.ValidationError:
 				results["test_cooldown"] = True
 		frappe.set_user("Administrator")
-		frappe.cache.delete_value(f"lumen_report_test|{BUILDER}")
+		frappe.cache().delete_value(f"lumen_report_test|{BUILDER}")
 	finally:
 		frappe.set_user("Administrator")
 		for name in created:

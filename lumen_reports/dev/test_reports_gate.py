@@ -50,5 +50,36 @@ def run():
 	# past it to the permission check (a bad slug is a DoesNotExist, not the gate)
 	out["gate_open_when_supported"] = MSG not in _throws(report.download, "__no_such_dashboard__")
 
-	out["all_ok"] = all(v is True or (isinstance(v, bool) and v) for v in out.values())
+	# v14 guard: the attribute form `frappe.cache.<attr>` raises AttributeError on
+	# v14 (there frappe.cache is a function). Every use must be the call form
+	# `frappe.cache().<attr>`. A dashboard controller slipped through the first pass
+	# and broke on a real v14 bench, so this scans the source to keep it from
+	# returning.
+	stray = bare_cache_uses()
+	out["no_bare_cache"] = stray == []
+	out["bare_cache"] = stray
+
+	out["all_ok"] = all(v for k, v in out.items() if isinstance(v, bool))
 	print(json.dumps(out, indent=1))
+
+
+def bare_cache_uses():
+	"""Every `frappe.cache.<attr>` in the shipped package (not `frappe.cache()`,
+	not `frappe.local.cache`). Must be empty for v14."""
+	import os
+	import re
+
+	root = frappe.get_app_path("lumen_reports")
+	pattern = re.compile(r"frappe\.cache\.\w")
+	hits = []
+	for base, _dirs, files in os.walk(root):
+		if "__pycache__" in base:
+			continue
+		for name in files:
+			if not name.endswith(".py"):
+				continue
+			path = os.path.join(base, name)
+			for i, line in enumerate(open(path, encoding="utf-8"), 1):
+				if pattern.search(line) and "frappe.local.cache" not in line:
+					hits.append(f"{os.path.relpath(path, root)}:{i}")
+	return hits

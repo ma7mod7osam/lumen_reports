@@ -16,7 +16,7 @@ def run():
 	out = {}
 
 	# --- caching ---
-	frappe.cache.delete_keys("lumen_res|ToDo|")
+	frappe.cache().delete_keys("lumen_res|ToDo|")
 	first = api.run_widget("demo", "by_status")
 	second = api.run_widget("demo", "by_status")
 	out["first_from_cache"] = bool(first.get("from_cache"))

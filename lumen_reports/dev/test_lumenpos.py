@@ -41,7 +41,7 @@ def run():
 	role = lumenpos.AUDIENCE_ROLE
 	if not frappe.db.exists("Role", role):
 		frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": 1}).insert(ignore_permissions=True)
-		frappe.cache.set_value(ROLE_FLAG, 1)
+		frappe.cache().set_value(ROLE_FLAG, 1)
 
 	_user(VIEWER, ["Lumen Viewer"])
 	_user(POS_MANAGER, ["Lumen Restricted Viewer", role])
@@ -154,8 +154,8 @@ def cleanup():
 	for email in (VIEWER, POS_MANAGER, OTHER_RESTRICTED, POS_ONLY):
 		if frappe.db.exists("User", email):
 			frappe.delete_doc("User", email, force=True, ignore_permissions=True)
-	if frappe.cache.get_value(ROLE_FLAG) and frappe.db.exists("Role", lumenpos.AUDIENCE_ROLE):
+	if frappe.cache().get_value(ROLE_FLAG) and frappe.db.exists("Role", lumenpos.AUDIENCE_ROLE):
 		frappe.delete_doc("Role", lumenpos.AUDIENCE_ROLE, force=True, ignore_permissions=True)
-		frappe.cache.delete_value(ROLE_FLAG)
+		frappe.cache().delete_value(ROLE_FLAG)
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- dev cleanup run from bench execute
 	print("cleaned")
