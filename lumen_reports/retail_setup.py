@@ -374,7 +374,7 @@ def add_sales_team():
 		(DEMO_COMPANY,),
 	)
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
-	frappe.cache.delete_keys("lumen_res|Sales Invoice|")
+	frappe.cache().delete_keys("lumen_res|Sales Invoice|")
 	return {"sales_people": len(SALES_PEOPLE), "invoices_assigned": added}
 
 
@@ -402,7 +402,7 @@ def scatter_transaction_hours():
 			(time_str, time_str, row.name),
 		)
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit — CLI demo seeder (bench execute), not a request: it inserts hundreds of docs and commits in batches so a late failure keeps the earlier work
-	frappe.cache.delete_keys("lumen_res|Sales Invoice|")
+	frappe.cache().delete_keys("lumen_res|Sales Invoice|")
 	return {"updated": len(rows)}
 
 

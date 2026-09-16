@@ -3,6 +3,8 @@
 # Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 import frappe
 
+from lumen_reports import report
+
 no_cache = 1
 
 # roles that open the app at all — the first, coarsest permission layer
@@ -33,4 +35,7 @@ def get_context(context):
 		# the app opens in the person's Frappe language until they pick one.
 		# frappe.lang is a request-local proxy; tojson needs the plain string
 		"lumen_lang": str(frappe.local.lang or "en"),
+		# PDF reports and schedules need WeasyPrint, absent on v14; the SPA hides
+		# their entry points when this is false
+		"reports_enabled": report.reports_supported(),
 	}

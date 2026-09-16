@@ -3,7 +3,11 @@
      Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions. -->
 <template>
   <div class="rp">
-    <div class="rbar">
+    <div v-if="!canReport" class="rp-unavailable" dir="auto">
+      <p>{{ t('PDF reports need Frappe version 15 or newer.') }}</p>
+      <router-link :to="{ name: 'DashboardView', params: { slug } }" class="lbtn">{{ t('Back to the dashboard') }}</router-link>
+    </div>
+    <div v-if="canReport" class="rbar">
       <router-link :to="{ name: 'DashboardView', params: { slug } }" class="tbtn" :title="t('Back to the dashboard')">
         <svg class="flip-rtl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
       </router-link>
@@ -20,7 +24,7 @@
       </a>
     </div>
 
-    <div class="rbody">
+    <div v-if="canReport" class="rbody">
       <!-- the preview is the PDF itself, so what is shown is exactly what
            gets downloaded, printed or emailed -->
       <div class="rpreview">
@@ -157,9 +161,11 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { call } from 'frappe-ui'
 import { lang, t } from '@/lib/i18n'
+import { reportsEnabled } from '@/lib/capabilities'
 import '@/components/builder/controls.css'
 
 const props = defineProps({ slug: { type: String, required: true } })
+const canReport = reportsEnabled()
 const route = useRoute()
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']

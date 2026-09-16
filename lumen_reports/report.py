@@ -31,6 +31,20 @@ from frappe import _
 
 from lumen_reports import api, query_engine
 
+_WEASYPRINT = None
+
+
+def reports_supported() -> bool:
+	"""PDF reports render with WeasyPrint, which ships with Frappe v15 and v16
+	but not v14. Where it is absent the report and schedule features hide
+	themselves rather than failing when someone tries to print."""
+	global _WEASYPRINT
+	if _WEASYPRINT is None:
+		import importlib.util
+
+		_WEASYPRINT = importlib.util.find_spec("weasyprint") is not None
+	return _WEASYPRINT
+
 PAPERS = {"A4": "A4", "Letter": "letter"}
 MAX_BARS = 10
 MAX_SLICES = 7
@@ -1106,6 +1120,8 @@ def _filename(doc, options):
 def download(slug: str, options: str | dict | None = None, inline: int | str = 0):
 	"""The dashboard as a PDF, rendered with the current person's permissions.
 	`inline` shows it in the browser's viewer instead of downloading."""
+	if not reports_supported():
+		frappe.throw(_("PDF reports need Frappe version 15 or newer."), title=_("Not available"))
 	doc = api._get_dashboard_doc(slug)  # read permission enforced here
 	pdf = render_pdf(doc, options)
 	frappe.local.response.filename = _filename(doc, options)

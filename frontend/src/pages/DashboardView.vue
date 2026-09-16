@@ -34,7 +34,7 @@
             {{ liveConnected ? t('Live') : socketTimedOut ? t('Offline') : t('Connecting…') }}
           </span>
           <router-link
-            v-if="!embed"
+            v-if="!embed && canReport"
             :to="{ name: 'DashboardReport', params: { slug }, query: reportQuery }"
             class="lbtn sm"
             style="text-decoration: none"
@@ -141,6 +141,11 @@ import { getSocket } from '@/lib/socket'
 import { applyLang, lang, t } from '@/lib/i18n'
 import { applyTheme, theme, themeVersion } from '@/lib/theme'
 import { defaultFilterValues } from '@/lib/dateRanges'
+import { reportsEnabled } from '@/lib/capabilities'
+
+// PDF reports need WeasyPrint, absent on Frappe v14, so the Report button hides
+// itself there (the embed view never shows it either way)
+const canReport = reportsEnabled()
 
 const props = defineProps({
   slug: { type: String, required: true },

@@ -30,10 +30,10 @@ IGNORED_DOCTYPES = {
 
 
 def get_registry() -> dict:
-	registry = frappe.cache.get_value(REGISTRY_CACHE_KEY)
+	registry = frappe.cache().get_value(REGISTRY_CACHE_KEY)
 	if registry is None:
 		registry = _build_registry()
-		frappe.cache.set_value(REGISTRY_CACHE_KEY, registry)
+		frappe.cache().set_value(REGISTRY_CACHE_KEY, registry)
 	return registry
 
 
@@ -74,7 +74,7 @@ def notify_doc_change(doc, method=None, *args, **kwargs):
 
 	# drop cached widget results for this doctype — same invalidation path
 	# as the realtime refresh, so cache and liveness can't disagree
-	frappe.cache.delete_keys(f"lumen_res|{doc.doctype}|")
+	frappe.cache().delete_keys(f"lumen_res|{doc.doctype}|")
 
 	# the message carries only a doctype name and dashboard slugs — no record
 	# data — and Frappe's socketio joins every authenticated desk client to the

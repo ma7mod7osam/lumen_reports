@@ -108,7 +108,7 @@ def run_widget(
 	extra_filters += _build_cross_filters(query, frappe.parse_json(cross_filters or "[]"))
 
 	cache_key = _result_cache_key(query.get("doctype"), [query, extra_filters, frappe.session.user])
-	cached = frappe.cache.get_value(cache_key, expires=True)
+	cached = frappe.cache().get_value(cache_key, expires=True)
 	if cached is not None:
 		cached["widget_id"] = widget_id
 		cached["from_cache"] = True
@@ -117,7 +117,7 @@ def run_widget(
 	result = query_engine.execute(query, extra_filters)
 	result["widget_id"] = widget_id
 	result["generated_at"] = frappe.utils.now()
-	frappe.cache.set_value(cache_key, result, expires_in_sec=CACHE_TTL_SECONDS)
+	frappe.cache().set_value(cache_key, result, expires_in_sec=CACHE_TTL_SECONDS)
 	return result
 
 

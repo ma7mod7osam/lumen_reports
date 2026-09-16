@@ -111,11 +111,15 @@ business, built on the doctypes you already have.
 
 ## Requirements
 
-- Frappe Framework **v15** or **v16**
+- Frappe Framework **v14**, **v15** or **v16**
 - Works alongside ERPNext, or on any custom app. Lumen reads whatever doctypes exist.
 - The AI features are optional and need your own Google Gemini API key
-- Scheduled delivery needs an outgoing **Email Account** on the site and the Frappe
-  scheduler running. Due schedules are picked up every 10 minutes.
+- **PDF reports and scheduled delivery need v15 or v16.** They render with
+  WeasyPrint, which ships with those versions but not v14, so on v14 the Report
+  button and the schedule panel hide themselves and the whole dashboard experience
+  works as normal. (If a v14 site installs WeasyPrint itself, they appear.)
+- Scheduled delivery also needs an outgoing **Email Account** on the site and the
+  Frappe scheduler running. Due schedules are picked up every 10 minutes.
 
 ## Installation
 

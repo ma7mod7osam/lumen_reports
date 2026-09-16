@@ -69,6 +69,8 @@ def next_run(schedule, after=None):
 
 def run_due():
 	"""Scheduler tick: hand every schedule that has come due to a job."""
+	if not report.reports_supported():
+		return  # no WeasyPrint (v14): nothing can be rendered to send
 	now = frappe.utils.now_datetime()
 	for name in frappe.get_all(
 		"Lumen Report Schedule",
@@ -225,12 +227,15 @@ def get_schedules(slug: str):
 		"can_schedule": frappe.has_permission("Lumen Report Schedule", "create"),
 		# the UI warns before anyone sets up a schedule that could never send
 		"email_ready": outgoing_ready(),
+		"reports_supported": report.reports_supported(),
 	}
 
 
 @frappe.whitelist()
 def save_schedule(payload: str | dict):
 	licensing.require_license()
+	if not report.reports_supported():
+		frappe.throw(_("Scheduled reports need Frappe version 15 or newer."), title=_("Not available"))
 	data = frappe.parse_json(payload)
 	if data.get("name"):
 		doc = frappe.get_doc("Lumen Report Schedule", data["name"])
@@ -267,6 +272,8 @@ def send_test(slug: str, options: str | dict | None = None):
 	user = frappe.session.user
 	if user == "Guest":
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
+	if not report.reports_supported():
+		frappe.throw(_("Scheduled reports need Frappe version 15 or newer."), title=_("Not available"))
 	if not outgoing_ready():
 		frappe.throw(
 			_(
@@ -278,9 +285,9 @@ def send_test(slug: str, options: str | dict | None = None):
 	key = f"lumen_report_test|{user}"
 	# expires=True reads redis directly. The plain read caches a miss in the
 	# request-local cache, which then hides the value set just below
-	if frappe.cache.get_value(key, expires=True):
+	if frappe.cache().get_value(key, expires=True):
 		frappe.throw(_("A test was just sent. Wait a few seconds before sending another."))
-	frappe.cache.set_value(key, 1, expires_in_sec=TEST_COOLDOWN_SECONDS)
+	frappe.cache().set_value(key, 1, expires_in_sec=TEST_COOLDOWN_SECONDS)
 
 	dashboard = api._get_dashboard_doc(slug)  # read permission enforced here
 	opts = report._options(options)
