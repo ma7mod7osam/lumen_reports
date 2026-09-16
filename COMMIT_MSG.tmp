@@ -1,0 +1,33 @@
+Ship the built frontend in the repo so it works on benches that can't build
+
+LumenPOS found on the live Frappe Cloud v14 pilot (lumenv14) that the app
+installs but /lumen and /lumen/embed/<slug> 404: public/frontend and
+www/lumen.html were gitignored build output, and that bench group runs Node
+14.19.0 while Vite 5 needs Node 18+, so the build silently produced nothing (the
+"Install Apps" step finished in 12s, far too short for yarn install + vite).
+The backend worked, the page did not. Shared marketplace benches on old Node
+cannot be changed by the customer, so building on install is not reliable.
+
+Fix (the way LumenPOS ships its own POS assets): commit the built frontend.
+- .gitignore no longer ignores public/frontend or www/lumen.html; both are
+  tracked. A bench that CAN build regenerates the same files; a bench that
+  cannot still has them. Rebuild and commit these together on every frontend
+  change (a stale bundle would ship otherwise).
+- Source maps stay ignored (/lumen_reports/public/frontend/**/*.map) and
+  vite.config sets build.sourcemap false in intent; the committed output is
+  3.5 MB, no maps.
+
+Defence in depth: get_status now returns reason "frontend_missing" (and
+can_view false) when www/lumen.html is absent, so the POS shows a clear message
+instead of embedding a 404 if a build is ever missing or partial. Everything
+else in the contract is unchanged.
+
+Message to LumenPOS: handle the new reason "frontend_missing" with something
+like "Lumen Reports is installed but its dashboard page is not built on this
+site. Ask an administrator to rebuild it (bench build --app lumen_reports)."
+
+Checks: dev/test_lumenpos gains a frontend_missing case (patches _frontend_built
+false -> reason frontend_missing, can_view false); full suite passes on v15,
+reports gate + no-bare-cache guard pass, semgrep 0.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

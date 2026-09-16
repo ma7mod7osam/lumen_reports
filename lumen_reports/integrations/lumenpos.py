@@ -270,6 +270,16 @@ def _require_login():
 		frappe.throw(_("Please log in"), frappe.PermissionError)
 
 
+def _frontend_built() -> bool:
+	"""The SPA page (www/lumen.html) is produced by the frontend build. Releases
+	ship it committed, but a bench that cannot run the build (Frappe v14 on Node
+	below 18) and somehow lacks it would 404 the embed. This lets the POS say so
+	instead of framing a broken page."""
+	import os
+
+	return os.path.exists(frappe.get_app_path("lumen_reports", "www", "lumen.html"))
+
+
 def _create(lang):
 	tr = (lambda text: AR.get(text, text)) if lang == "ar" else (lambda text: text)
 
@@ -326,8 +336,10 @@ def get_status():
 	name = _dashboard_name()
 	has_source = bool(frappe.db.exists("DocType", SOURCE))
 	has_role = _has_app_role()
+	built = _frontend_built()
+	# a dashboard you may read is still not viewable if its page did not build
 	can_view = False
-	if name and has_role and frappe.has_permission("Lumen Dashboard", "read", doc=name):
+	if name and has_role and built and frappe.has_permission("Lumen Dashboard", "read", doc=name):
 		can_view = True
 	can_create = False
 	if has_source and frappe.has_permission("Lumen Dashboard", "create"):
@@ -335,6 +347,8 @@ def get_status():
 
 	if not has_source:
 		reason = "needs_erpnext"
+	elif not built:
+		reason = "frontend_missing"
 	elif not name:
 		reason = "not_set_up"
 	elif not has_role:

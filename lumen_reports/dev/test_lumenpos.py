@@ -8,6 +8,7 @@ bench --site <site> execute lumen_reports.dev.test_lumenpos.cleanup
 """
 
 import json
+from unittest.mock import patch
 
 import frappe
 
@@ -88,6 +89,11 @@ def run():
 	out["other_restricted_blocked"] = other["can_view"] is False and other["reason"] == "not_in_audience"
 	pos_only = _as(POS_ONLY, lumenpos.get_status)
 	out["no_lumen_role_asked_for_one"] = pos_only["can_view"] is False and pos_only["reason"] == "needs_role"
+
+	# a bench that could not build the SPA page is reported, not framed as a 404
+	with patch.object(lumenpos, "_frontend_built", return_value=False):
+		unbuilt = lumenpos.get_status()
+		out["frontend_missing_reported"] = unbuilt["reason"] == "frontend_missing" and unbuilt["can_view"] is False
 	# seeing the dashboard is not reading the data. On this bench the POS role has
 	# no read on POS Invoice, so the numbers must still be refused
 	try:

@@ -18,6 +18,12 @@ export default defineConfig({
     }),
     vue(),
   ],
+  // the built frontend is committed to the app repo (see .gitignore) so a bench
+  // that cannot run the build (Frappe v14 on Node below 18) still ships the page.
+  // No source maps: they double the committed size and would expose the source.
+  build: {
+    sourcemap: false,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
