@@ -11,14 +11,28 @@ function config(key, fallback) {
   return value
 }
 
+// Build the socket.io URL the way Frappe's own client does (get_host in
+// socketio_client.js): in production the page is on a standard port and
+// socket.io is proxied at the same origin, so connect to the origin as-is; only
+// a dev bench, where the page runs on its own port (e.g. 8000) and socket.io
+// listens on socketio_port (9000), swaps the port. Hardcoding :9000 broke every
+// Frappe Cloud site (port 9000 is not exposed there), which showed as a stuck
+// "Offline" badge and no live updates.
+function socketUrl() {
+  const siteName = config('site_name', window.location.hostname)
+  const pagePort = window.location.port
+  const socketioPort = config('socketio_port', '')
+  if (pagePort && socketioPort) {
+    // dev: same host, socket.io on its own port
+    return `${window.location.protocol}//${window.location.hostname}:${socketioPort}/${siteName}`
+  }
+  // production behind a proxy: same origin, standard port, /socket.io proxied
+  return `${window.location.origin}/${siteName}`
+}
+
 export function getSocket() {
   if (socket) return socket
-  const siteName = config('site_name', window.location.hostname)
-  const port = config('socketio_port', '9000')
-  const host = window.location.hostname
-  const protocol = window.location.protocol
-  const url = `${protocol}//${host}:${port}/${siteName}`
-  socket = io(url, {
+  socket = io(socketUrl(), {
     withCredentials: true,
     reconnectionAttempts: 5,
   })

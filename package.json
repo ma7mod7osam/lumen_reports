@@ -1,7 +1,7 @@
 {
   "name": "lumen_reports",
   "private": true,
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Beautiful, fast, live-updating reports and dashboards for Frappe",
   "scripts": {
     "dev": "cd frontend && yarn dev",
