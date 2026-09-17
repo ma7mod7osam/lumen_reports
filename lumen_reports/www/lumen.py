@@ -32,6 +32,10 @@ def get_context(context):
 		"csrf_token": frappe.sessions.get_csrf_token(),
 		"site_name": frappe.local.site,
 		"socketio_port": frappe.conf.socketio_port or 9000,
+		# v15+ serves a socket.io namespace per site; v14 serves only the default
+		# namespace and carries the site in the room names, so the client must not
+		# append the site namespace there (it is refused as "Invalid namespace")
+		"socketio_site_namespace": _frappe_major() >= 15,
 		# the app opens in the person's Frappe language until they pick one.
 		# frappe.lang is a request-local proxy; tojson needs the plain string
 		"lumen_lang": str(frappe.local.lang or "en"),
@@ -39,3 +43,10 @@ def get_context(context):
 		# their entry points when this is false
 		"reports_enabled": report.reports_supported(),
 	}
+
+
+def _frappe_major() -> int:
+	try:
+		return int(str(frappe.__version__).split(".")[0])
+	except (ValueError, IndexError):
+		return 15  # unknown: assume the modern per-site namespace

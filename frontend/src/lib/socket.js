@@ -22,12 +22,20 @@ function socketUrl() {
   const siteName = config('site_name', window.location.hostname)
   const pagePort = window.location.port
   const socketioPort = config('socketio_port', '')
-  if (pagePort && socketioPort) {
-    // dev: same host, socket.io on its own port
-    return `${window.location.protocol}//${window.location.hostname}:${socketioPort}/${siteName}`
-  }
-  // production behind a proxy: same origin, standard port, /socket.io proxied
-  return `${window.location.origin}/${siteName}`
+  // dev bench: the page runs on its own port and socket.io listens on
+  // socketio_port. Production behind a proxy: same origin, standard port.
+  const base =
+    pagePort && socketioPort
+      ? `${window.location.protocol}//${window.location.hostname}:${socketioPort}`
+      : window.location.origin
+
+  // Frappe v15+ serves a socket.io namespace per site (origin + /<site>); v14
+  // serves only the default namespace and puts the site in the room names, and
+  // refuses a per-site namespace with "Invalid namespace". The boot flag says
+  // which; only an explicit false (v14) drops the namespace, so a missing or
+  // unrendered flag keeps it, which is right for v15+.
+  const useSiteNamespace = window.socketio_site_namespace !== false
+  return useSiteNamespace ? `${base}/${siteName}` : base
 }
 
 export function getSocket() {
