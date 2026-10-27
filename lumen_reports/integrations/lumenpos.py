@@ -8,13 +8,19 @@ LumenPOS is a separate app under a different licence, so the two apps meet only
 here: two whitelisted calls and one documented URL. Nothing in this app imports
 LumenPOS, and LumenPOS copies nothing from this one.
 
-Contract version 1
+Contract version 2
 - get_status (GET) reads state and changes nothing, so the POS can decide what
-  to show: a request for a role, a setup button, or the dashboard itself.
+  to show: a request for a role, a setup button, or the dashboard itself. It
+  reports `contract` and `reports_api`, so a POS can tell a build that serves
+  registered reports from one that only embeds the dashboard.
 - ensure_dashboard (POST) creates the POS sales dashboard once and never
   overwrites it afterwards, because people customise dashboards they own.
 - The dashboard is embedded at /lumen/embed/<slug> in a same-origin iframe,
   with optional ?lang=en|ar and ?theme=light|dark.
+- Reports the POS computes itself are registered and run through
+  lumen_reports.integrations.sources, which is general and belongs to no one
+  app. That is where a POS report screen gets its numbers from, so a shop
+  without this app sees no reports at all.
 
 Access follows the ordinary Lumen rules. The viewer needs a Lumen role (Lumen
 Restricted Viewer is enough, and shows only dashboards that name one of their
@@ -31,7 +37,7 @@ from frappe import _
 from lumen_reports import licensing, starters
 from lumen_reports.www.lumen import APP_ROLES
 
-CONTRACT_VERSION = 1
+CONTRACT_VERSION = 2
 SLUG = "lumenpos-sales"
 AUDIENCE_ROLE = "LumenPOS Manager"
 
@@ -251,6 +257,9 @@ def _has_app_role() -> bool:
 def _links() -> dict:
 	return {
 		"contract": CONTRACT_VERSION,
+		# reports another app registers are served from here too, not only the
+		# embedded dashboard: see lumen_reports.integrations.sources
+		"reports_api": True,
 		"slug": SLUG,
 		"url": f"/lumen/dashboard/{SLUG}",
 		"embed_url": f"/lumen/embed/{SLUG}",

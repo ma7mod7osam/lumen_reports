@@ -254,7 +254,60 @@ apps meet only at runtime, through the calls below, and neither imports the othe
   `ensure_dashboard` from an administrator's action.
 - **Data** comes from submitted POS Invoices only, so sales consolidated into Sales
   Invoices when a register closes are not counted twice.
-- Contract version 1. Checks: `bench --site <site> execute lumen_reports.dev.test_lumenpos.run`.
+- Contract version 2. Checks: `bench --site <site> execute lumen_reports.dev.test_lumenpos.run`.
+
+## Reports another app computes
+
+Some numbers cannot be written as a dashboard widget. The cost of goods sold reads a
+stock ledger, expands a bundle into its parts and estimates what has not been posted
+yet; a cash count compares a drawer against a shift. That knowledge belongs to the app
+that owns the subject, and Lumen Reports runs no raw SQL by design. So the owning app
+keeps the arithmetic and registers it here, and Lumen Reports becomes the way it is
+reached: it holds the entry point, the licence state, the role gate and the filter
+contract, and the owning app's own permission rule is asked before its code runs.
+
+In the other app's `hooks.py`:
+
+```python
+lumen_report_sources = ["lumenpos.reporting.sources"]
+```
+
+That path is a callable returning one definition or a list of them:
+
+```python
+def sources():
+    return [
+        {
+            "key": "lumenpos.sales_summary",          # <app>.<report>
+            "label": "Sales summary",
+            "method": "lumenpos.api.reports.sales_summary",
+            "filters": ["from_date", "to_date", "pos_profile", "outlet"],
+            "capability": "lumenpos.api.reports.can_see_sales_reports",   # optional
+        }
+    ]
+```
+
+| Call | What it does |
+|---|---|
+| `lumen_reports.integrations.sources.list_reports` (GET) | What is registered on this site: `key`, `label`, `app`, `filters`, `can_run`, plus `contract`, `license` and `has_role` |
+| `lumen_reports.integrations.sources.run_report` (GET or POST, `key` and optional `filters`) | Runs one report and returns the owning app's result untouched under `result`, or a refusal with a `message`: `needs_role`, `unknown_report`, `not_permitted`, `not_available` |
+
+- **`method` and `capability` are dotted paths into the registering app**, and must
+  start with the app its `key` names, so a hook cannot reach into a third app. No path
+  ever comes from the caller.
+- **Only the filters a definition declares are forwarded**, so a caller cannot smuggle
+  an argument past the owning app. A definition that is malformed, names an app that is
+  not installed, or writes `filters` as anything but a list is dropped rather than run
+  with the wrong arguments.
+- **The owning app decides who may see it.** Its `capability` is called before its
+  `method`, and a rule that raises counts as a refusal. On top of that the viewer still
+  needs a Lumen role, which is what lets a host app show an "install Lumen Reports"
+  card instead of a report.
+- **Errors travel as they are.** A refusal the owning app wrote reaches the caller
+  unchanged, because it is clearer than anything this app could invent.
+- Not yet: PDF export and scheduled delivery of a registered report. The renderer draws
+  dashboard widgets, and a registered result needs its own block type.
+- Checks: `bench --site <site> execute lumen_reports.dev.test_sources.run`.
 
 ## Optional: demo data
 
