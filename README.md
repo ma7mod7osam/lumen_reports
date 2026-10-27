@@ -254,7 +254,7 @@ apps meet only at runtime, through the calls below, and neither imports the othe
   `ensure_dashboard` from an administrator's action.
 - **Data** comes from submitted POS Invoices only, so sales consolidated into Sales
   Invoices when a register closes are not counted twice.
-- Contract version 2. Checks: `bench --site <site> execute lumen_reports.dev.test_lumenpos.run`.
+- Contract version 3. Checks: `bench --site <site> execute lumen_reports.dev.test_lumenpos.run`.
 
 ## Reports another app computes
 
@@ -283,13 +283,14 @@ def sources():
             "method": "lumenpos.api.reports.sales_summary",
             "filters": ["from_date", "to_date", "pos_profile", "outlet"],
             "capability": "lumenpos.api.reports.can_see_sales_reports",   # optional
+            "roles": ["LumenPOS Manager", "LumenPOS Reports"],            # optional
         }
     ]
 ```
 
 | Call | What it does |
 |---|---|
-| `lumen_reports.integrations.sources.list_reports` (GET) | What is registered on this site: `key`, `label`, `app`, `filters`, `can_run`, plus `contract`, `license` and `has_role` |
+| `lumen_reports.integrations.sources.list_reports` (GET) | What is registered on this site: `key`, `label`, `app`, `filters`, `roles`, `can_run`, plus `contract`, `license` and `has_role` |
 | `lumen_reports.integrations.sources.run_report` (GET or POST, `key` and optional `filters`) | Runs one report and returns the owning app's result untouched under `result`, or a refusal with a `message`: `needs_role`, `unknown_report`, `not_permitted`, `not_available` |
 
 - **`method` and `capability` are dotted paths into the registering app**, and must
@@ -300,9 +301,17 @@ def sources():
   not installed, or writes `filters` as anything but a list is dropped rather than run
   with the wrong arguments.
 - **The owning app decides who may see it.** Its `capability` is called before its
-  `method`, and a rule that raises counts as a refusal. On top of that the viewer still
-  needs a Lumen role, which is what lets a host app show an "install Lumen Reports"
-  card instead of a report.
+  `method`, and a rule that raises counts as a refusal.
+- **A viewer needs a Lumen role, unless the definition names roles of its own.**
+  `roles` lists roles that stand in for a Lumen role **for that report only**: a shop
+  manager who runs the till should not have to be given a reporting role as well to
+  read the till's own numbers. Those roles open nothing else, not a dashboard, not the
+  studio, not another app's report, and the owning app's `capability` still decides.
+  Without `roles`, a Lumen role is required, which is what lets a host app show an
+  "install Lumen Reports" card instead of a report.
+- **The licence is reported, never enforced.** `list_reports` returns the licence
+  state so a host app can show a banner, and a report still runs: reads are not
+  blocked here, the same way they are not blocked anywhere else in this app.
 - **Errors travel as they are.** A refusal the owning app wrote reaches the caller
   unchanged, because it is clearer than anything this app could invent.
 - Not yet: PDF export and scheduled delivery of a registered report. The renderer draws

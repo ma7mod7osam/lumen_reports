@@ -28,6 +28,7 @@ That path is a callable returning one definition or a list of them:
         "method": "lumenpos.api.reports.sales_summary",
         "filters": ["from_date", "to_date", "pos_profile", "outlet"],
         "capability": "lumenpos.api.reports.can_see_sales_reports",   # optional
+        "roles": ["LumenPOS Manager", "LumenPOS Reports"],            # optional
     }
 
 `method` and `capability` are dotted paths into the registering app, and must
@@ -35,7 +36,17 @@ start with the app the key names: a hook cannot reach into a third app, and no
 path ever comes from the caller. Only the filters a definition declares are
 forwarded, so a caller cannot smuggle an argument past the owning app.
 
-Contract version 2. Refusals come back as a status and a message, never as an
+`roles` names roles that stand in for a Lumen role FOR THAT REPORT ONLY. A shop
+manager who runs the till should not have to be given a reporting role as well to
+read the till's own numbers, which is what the owner decided on 2026-10-27. It
+opens nothing else: not a dashboard, not the studio, not another app's report.
+The owning app's `capability` still decides, and without `roles` a Lumen role is
+required as before.
+
+The licence is reported, never enforced: reads are not blocked here, the same way
+they are not blocked anywhere else in this app.
+
+Contract version 3. Refusals come back as a status and a message, never as an
 exception, so the caller can show them as they are.
 """
 
@@ -47,14 +58,16 @@ from frappe import _
 from lumen_reports import licensing
 from lumen_reports.www.lumen import APP_ROLES
 
-CONTRACT_VERSION = 2
+CONTRACT_VERSION = 3
 HOOK = "lumen_report_sources"
 
 KEY = re.compile(r"^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$")
 FILTER_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+ROLE_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9 _()./-]{0,58}$")
 DOTTED = re.compile(r"^[a-z][a-z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$")
 
 MAX_FILTERS = 12
+MAX_ROLES = 8
 MAX_VALUE = 140
 MAX_LABEL = 120
 
@@ -95,6 +108,14 @@ def _clean_source(raw, installed: set) -> dict | None:
 		return None
 	filters = [str(n) for n in names if FILTER_NAME.match(str(n))][:MAX_FILTERS]
 
+	declared = raw.get("roles") or []
+	if not isinstance(declared, (list, tuple)):
+		return None
+	# Guest never counts: nobody signed in is Guest, and naming it would read
+	# like a way to publish a report, which this is not
+	roles = [str(r).strip() for r in declared]
+	roles = [r for r in roles if ROLE_NAME.match(r) and r != "Guest"][:MAX_ROLES]
+
 	return {
 		"key": key,
 		"app": app,
@@ -102,6 +123,7 @@ def _clean_source(raw, installed: set) -> dict | None:
 		"method": method,
 		"capability": capability,
 		"filters": filters,
+		"roles": roles,
 	}
 
 
@@ -141,6 +163,20 @@ def _require_login():
 def _has_app_role() -> bool:
 	user = frappe.session.user
 	return user == "Administrator" or bool(APP_ROLES & set(frappe.get_roles(user)))
+
+
+def _may_reach(source: dict) -> bool:
+	"""Whether this person may reach this report at all.
+
+	A Lumen role opens every registered report. A report may also name roles of
+	its own app that stand in for one, and they count for that report and for
+	nothing else: this is not a way into dashboards, the studio, or another
+	app's reports."""
+	if _has_app_role():
+		return True
+	if not source["roles"]:
+		return False
+	return bool(set(source["roles"]) & set(frappe.get_roles()))
 
 
 def _allowed(source: dict) -> bool:
@@ -198,7 +234,8 @@ def list_reports() -> dict:
 			"label": s["label"],
 			"app": s["app"],
 			"filters": s["filters"],
-			"can_run": has_role and _allowed(s),
+			"roles": s["roles"],
+			"can_run": _may_reach(s) and _allowed(s),
 		}
 		for s in _registry().values()
 	]
@@ -218,15 +255,18 @@ def run_report(key: str, filters=None) -> dict:
 	The owning app's result is passed through untouched under `result`: this app
 	does not know what the numbers mean and must not reshape them."""
 	_require_login()
-	if not _has_app_role():
+
+	# the report is resolved first: which roles open it is now the report's own
+	# business, so there is nothing to check until we know which one it is
+	source = _registry().get(str(key or ""))
+	if not source:
+		return _refusal("unknown_report", _("No report is registered as {0}.").format(str(key or "")[:60]))
+
+	if not _may_reach(source):
 		return _refusal(
 			"needs_role",
 			_("You need a Lumen Reports role to see this. Ask your administrator for Lumen Restricted Viewer."),
 		)
-
-	source = _registry().get(str(key or ""))
-	if not source:
-		return _refusal("unknown_report", _("No report is registered as {0}.").format(str(key or "")[:60]))
 
 	if not _allowed(source):
 		return _refusal("not_permitted", _("You do not have permission to see this report."))

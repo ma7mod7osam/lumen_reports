@@ -8,7 +8,7 @@ LumenPOS is a separate app under a different licence, so the two apps meet only
 here: two whitelisted calls and one documented URL. Nothing in this app imports
 LumenPOS, and LumenPOS copies nothing from this one.
 
-Contract version 2
+Contract version 3
 - get_status (GET) reads state and changes nothing, so the POS can decide what
   to show: a request for a role, a setup button, or the dashboard itself. It
   reports `contract` and `reports_api`, so a POS can tell a build that serves
@@ -37,7 +37,7 @@ from frappe import _
 from lumen_reports import licensing, starters
 from lumen_reports.www.lumen import APP_ROLES
 
-CONTRACT_VERSION = 2
+CONTRACT_VERSION = 3
 SLUG = "lumenpos-sales"
 AUDIENCE_ROLE = "LumenPOS Manager"
 
