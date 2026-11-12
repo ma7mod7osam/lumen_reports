@@ -21,6 +21,9 @@ from lumen_reports import query_engine
 
 OWNER = "shapes.owner@test.local"  # sees only the ToDos allocated to them
 MARK = "__lumen_shapes__"
+# a role of our own rather than a stock one: Blogger is not on every site,
+# and its absence failed this check on the v16 bench long after it was written
+OWN_ROLE = "Lumen Shapes Probe"
 
 # two months, so a month grain has something to split; idx carries the numbers
 SEEDS = [
@@ -35,12 +38,16 @@ SEEDS = [
 
 def _seed():
 	_drop()
+	if not frappe.db.exists("Role", OWN_ROLE):
+		frappe.get_doc({"doctype": "Role", "role_name": OWN_ROLE, "desk_access": 0}).insert(
+			ignore_permissions=True
+		)
 	if not frappe.db.exists("User", OWNER):
 		user = frappe.get_doc(
 			{"doctype": "User", "email": OWNER, "first_name": "Shapes", "send_welcome_email": 0}
 		)
 		user.insert(ignore_permissions=True)
-		user.add_roles("Blogger")
+		user.add_roles(OWN_ROLE)
 
 	for i, (date, priority, idx) in enumerate(SEEDS):
 		doc = frappe.get_doc(
@@ -132,5 +139,7 @@ def cleanup():
 	_drop()
 	if frappe.db.exists("User", OWNER):
 		frappe.delete_doc("User", OWNER, force=True, ignore_permissions=True)
+	if frappe.db.exists("Role", OWN_ROLE):
+		frappe.delete_doc("Role", OWN_ROLE, force=True, ignore_permissions=True)
 	frappe.db.commit()
 	print("cleaned")

@@ -25,6 +25,7 @@ from frappe import _
 from frappe.query_builder import Order
 from frappe.query_builder.functions import Avg, Count, Max, Min, Sum
 from pypika import CustomFunction
+from pypika.terms import Criterion
 from pypika.terms import Function as PkFunction
 from pypika.terms import LiteralValue, NullValue
 
@@ -288,13 +289,80 @@ def _resolve_filters(resolver, raw_filters):
 	return resolved
 
 
+class _RawCondition(Criterion):
+	"""A condition Frappe built for us, dropped into the query as it stands.
+
+	Frappe hands back its row restrictions as finished SQL with every value
+	already quoted by it, so there is nothing here to parameterise and nothing
+	from the caller in the string."""
+
+	def __init__(self, sql: str):
+		super().__init__()
+		self._sql = sql
+
+	def get_sql(self, **kwargs):
+		return self._sql
+
+	def fields_(self):
+		return []
+
+
+def _row_conditions(doctype: str) -> str:
+	"""The row filter frappe.get_list would apply to this doctype for this user.
+
+	Covers User Permissions, permission_query_conditions hooks, server scripts
+	and shares, returned as one SQL string that refers to `tab<doctype>`."""
+	from frappe.model.db_query import DatabaseQuery
+
+	query = DatabaseQuery(doctype)
+	query.fields = ["name"]
+	return query.build_match_conditions(as_condition=True) or ""
+
+
+def _restrict_rows(resolver, q):
+	"""Narrow the query to the rows this person is allowed to read.
+
+	This engine builds its own SQL, so Frappe's permission layer never sees the
+	query and only the doctype-level read check in _check_perm runs. That is not
+	enough on its own: a User Permission decides WHICH ROWS a person may read,
+	and without this a widget built on invoice lines showed a viewer restricted
+	to one customer every other customer's lines.
+
+	Each restriction goes in as a subquery on `name`, which keeps it independent
+	of the aliases the joins use, and matches the table the condition names."""
+	seen = set()
+	targets = []
+
+	# the doctype that carries permission for the base: a child table has none
+	# of its own, its parent decides
+	if resolver.base_meta.istable:
+		targets.append((resolver.parent_doctype, f"`tab{resolver.base_doctype}`.`parent`"))
+	else:
+		targets.append((resolver.base_doctype, f"`tab{resolver.base_doctype}`.`name`"))
+
+	# a joined doctype is read too, so its own restrictions apply as well
+	for link_field, target_doctype in resolver.joins:
+		targets.append((target_doctype, f"`via_{link_field}`.`name`"))
+
+	for doctype, key in targets:
+		if doctype in seen:
+			continue
+		seen.add(doctype)
+		condition = _row_conditions(doctype)
+		if condition:
+			q = q.where(
+				_RawCondition(f"{key} in (select `name` from `tab{doctype}` where {condition})")
+			)
+	return q
+
+
 def _apply_filters(resolver, q, resolved):
 	# child base: constrain to the intended parent doctype
 	if resolver.base_meta.istable:
 		q = q.where(resolver.base.parenttype == resolver.parent_doctype)
 	for col, operator, value in resolved:
 		q = q.where(_apply_operator(col, operator, value))
-	return q
+	return _restrict_rows(resolver, q)
 
 
 def _apply_operator(col, operator, value):
