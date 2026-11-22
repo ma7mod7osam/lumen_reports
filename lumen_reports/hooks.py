@@ -153,6 +153,11 @@ add_to_apps_screen = [
 after_install = "lumen_reports.setup.after_install"
 after_migrate = "lumen_reports.setup.after_migrate"
 
+# Reports this app computes itself and serves through integrations.sources,
+# the same contract another app uses. The audit trail cannot be a widget
+# query: its rows come out of a JSON blob, not out of columns.
+lumen_report_sources = ["lumen_reports.audit.sources"]
+
 doc_events = {
 	"*": {
 		"on_change": "lumen_reports.realtime.notify_doc_change",

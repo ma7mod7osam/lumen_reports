@@ -24,7 +24,16 @@ Created here (idempotently) rather than shipped as fixtures so a bare
 
 import frappe
 
-LUMEN_ROLES = ("Lumen Viewer", "Lumen Restricted Viewer", "Lumen Builder", "Lumen Manager")
+# Lumen Auditor is deliberately apart from the others: it is the only role that
+# is meant to read other people's documents, through the audit trail and nothing
+# else. Never fold it into the viewer or manager roles.
+LUMEN_ROLES = (
+	"Lumen Viewer",
+	"Lumen Restricted Viewer",
+	"Lumen Builder",
+	"Lumen Manager",
+	"Lumen Auditor",
+)
 
 
 def ensure_roles():

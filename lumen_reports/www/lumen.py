@@ -14,6 +14,7 @@ APP_ROLES = {
 	"Lumen Builder",
 	"Lumen Viewer",
 	"Lumen Restricted Viewer",
+	"Lumen Auditor",
 }
 
 
