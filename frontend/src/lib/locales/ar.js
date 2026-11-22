@@ -286,6 +286,32 @@ export default {
     'تتبع الرسوم ألوان السمة. العنصر الذي اخترت له لونا يحتفظ به، فيبقى التمييز الذي حددته بنفسك عند تغيير النمط.',
   'Reset to the app theme': 'العودة إلى سمة التطبيق',
 
+  // ---- audit trail
+  'Audit trail': 'سجل التدقيق',
+  Audit: 'التدقيق',
+  'Every recorded change, one row each, across the whole site.':
+    'كل تغيير مسجل، صف لكل تغيير، على مستوى الموقع كامل.',
+  'You need the Lumen Auditor role to read the audit trail. Ask your administrator.':
+    'قراءة سجل التدقيق تحتاج دور مدقق لومن. تواصل مع مدير النظام.',
+  Any: 'الكل',
+  'Document type': 'نوع المستند',
+  'Changed by': 'غيره',
+  Action: 'الإجراء',
+  'Document status': 'حالة المستند',
+  'Document no.': 'رقم المستند',
+  'Exact document name': 'اسم المستند بالضبط',
+  Field: 'الحقل',
+  'Part of the field name': 'جزء من اسم الحقل',
+  Branch: 'الفرع',
+  'Where the document has one': 'حيث يوجد في المستند',
+  'Cost centre': 'مركز التكلفة',
+  'Reading the history...': 'جاري قراءة السجل...',
+  'Changes found': 'التغييرات',
+  'Choose a period, then run it.': 'اختر الفترة ثم شغل التقرير.',
+  'Export CSV': 'تصدير CSV',
+  Run: 'تشغيل',
+  'That could not be read.': 'تعذرت القراءة.',
+
   // ---- visual identity
   'Visual identity': 'الهوية البصرية',
   Identity: 'الهوية',

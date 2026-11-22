@@ -3,7 +3,7 @@
 # Proprietary and confidential. See license.txt. "Lumen Reports" is a trademark of Lumen Solutions.
 import frappe
 
-from lumen_reports import brand, report
+from lumen_reports import audit, brand, report
 
 no_cache = 1
 
@@ -47,6 +47,9 @@ def get_context(context):
 		# fetched, so a themed dashboard paints in its own colors on first draw
 		# instead of flashing the app's blue first
 		"lumen_brand": {**brand.get_brand(), "can_manage": brand.can_manage()},
+		# the audit trail is the one screen gated on a role of its own, so the
+		# header needs to know without asking
+		"lumen_auditor": audit.can_see(),
 	}
 
 

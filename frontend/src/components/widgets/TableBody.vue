@@ -25,6 +25,7 @@
               :class="{ num: isNumeric(col) }"
               class="max-w-64 truncate"
               dir="auto"
+              :title="cellTitle(row[col.fieldname])"
             >
               <span
                 v-if="col.fieldtype === 'Select' && badgeFor(row[col.fieldname])"
@@ -85,6 +86,14 @@ const BADGE_MAP = {
 function badgeFor(value) {
   if (typeof value !== 'string') return null
   return BADGE_MAP[value.toLowerCase()] || null
+}
+
+// a cell is clipped to keep the columns readable, so the whole value has to be
+// reachable somehow: hovering is the cheapest way, and an audit row is mostly
+// old value against new value
+function cellTitle(value) {
+  if (value === null || value === undefined || value === '') return undefined
+  return String(value)
 }
 
 function isNumeric(col) {

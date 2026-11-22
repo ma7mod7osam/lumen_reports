@@ -510,6 +510,73 @@ def _amendment_no(doctype, name, _cache={}):
 	return _cache[key]
 
 
+# ---------------------------------------------------------------- pickers
+
+
+@frappe.whitelist(methods=["GET"])
+def options():
+	"""What the filters on the page should offer.
+
+	Drawn from the trail itself rather than from the site's own lists. An auditor
+	often holds nothing but the audit role, so asking for every User or every
+	Company would be refused for want of read permission, and it would offer
+	values that appear nowhere in the history anyway."""
+	if frappe.session.user == "Guest":
+		frappe.throw(_("Please log in"), frappe.PermissionError)
+	if not can_see():
+		frappe.throw(_("You need the {0} role to read the audit trail.").format(ROLE), frappe.PermissionError)
+
+	seen = frappe.db.sql(
+		"""select ref_doctype as name, count(name) as n from `tabVersion`
+		   group by ref_doctype order by n desc limit 200""",
+		as_dict=True,
+	)
+	doctypes = [r.name for r in seen]
+	if frappe.db.exists("DocType", "Deleted Document"):
+		for r in frappe.db.sql(
+			"""select distinct deleted_doctype as name from `tabDeleted Document` limit 200""",
+			as_dict=True,
+		):
+			if r.name and r.name not in doctypes:
+				doctypes.append(r.name)
+
+	modules = sorted(
+		{
+			m
+			for m in frappe.get_all(
+				"DocType", filters={"name": ["in", doctypes]}, pluck="module",
+				limit_page_length=0, ignore_permissions=True,
+			)
+			if m
+		}
+	)
+
+	users = [
+		r.name
+		for r in frappe.db.sql(
+			"""select distinct owner as name from `tabVersion` order by owner limit 200""",
+			as_dict=True,
+		)
+		if r.name
+	]
+
+	companies = _allowed_companies()
+	if not companies and frappe.db.exists("DocType", "Company"):
+		companies = frappe.get_all(
+			"Company", pluck="name", limit_page_length=0, ignore_permissions=True
+		)
+
+	return {
+		"doctypes": sorted(doctypes),
+		"modules": modules,
+		"users": users,
+		"companies": sorted(companies or []),
+		"actions": list(ACTIONS),
+		"statuses": list(STATUSES),
+		"max_rows": MAX_ROWS,
+	}
+
+
 # ---------------------------------------------------------------- registration
 
 

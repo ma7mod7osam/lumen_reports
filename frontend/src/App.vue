@@ -38,6 +38,19 @@
             </svg>
             {{ t('Identity') }}
           </router-link>
+          <router-link
+            v-if="isAuditor"
+            to="/audit"
+            class="theme-btn"
+            :title="t('Audit trail')"
+            style="text-decoration: none"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+              <path d="M14 3v5h5M9 13h4M9 17h6" />
+            </svg>
+            {{ t('Audit') }}
+          </router-link>
           <!-- each language names itself, so the switch is findable from either side -->
           <button class="theme-btn" :title="lang === 'ar' ? 'English' : 'العربية'" @click="setLang(lang === 'ar' ? 'en' : 'ar')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -86,6 +99,9 @@ const embed = computed(() => Boolean(route.meta.embed) || window.location.pathna
 // served by Frappe from the app's public folder, not bundled — bound rather than
 // a literal src so Vite doesn't try to resolve it at build time
 const appIcon = '/assets/lumen_reports/logo/svg/app-icon.svg'
+
+// handed over at page load, like the identity, so the header does not have to ask
+const isAuditor = computed(() => Boolean(window.lumen_auditor))
 
 // unlicensed use should be visible rather than silent; a failure to check
 // must never keep the app from loading

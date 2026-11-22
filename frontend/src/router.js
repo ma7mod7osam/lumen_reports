@@ -30,6 +30,11 @@ const routes = [
     component: () => import('@/pages/BrandSettings.vue'),
   },
   {
+    path: '/audit',
+    name: 'AuditTrail',
+    component: () => import('@/pages/AuditTrail.vue'),
+  },
+  {
     path: '/dashboard/:slug',
     name: 'DashboardView',
     component: () => import('@/pages/DashboardView.vue'),
