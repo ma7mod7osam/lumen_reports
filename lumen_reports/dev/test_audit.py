@@ -147,6 +147,34 @@ def run():
 		if r["key"] == "lumen_reports.audit_trail" and r["can_run"]
 	]
 
+	# ---- the printed edition, on the organization's own paper
+	from lumen_reports import report
+
+	if report.reports_supported():
+		markup = report.render_source_html(
+			"Consolidated Audit Trail", res, {"header": 1},
+			filters=WIDE, notes=res["notes"],
+		)
+		out["print_names_the_report"] = "Consolidated Audit Trail" in markup
+		out["print_credits_lumen"] = f'content: "{report.CREDIT}"' in markup
+		out["print_shows_the_filters"] = "From date" in markup
+		out["print_carries_the_notes"] = all(n[:30] in markup for n in res["notes"])
+		# the page carries the columns the report named for print, not all 22:
+		# the rest would fall off the edge, and they are the ones that matter
+		# least on paper. "<thead>" also begins with "<th", so count the cells
+		printed = len(res["print_columns"])
+		out["print_trims_to_named_columns"] = markup.count('<th class=') == printed
+		out["print_columns_are_fewer"] = printed < len(res["columns"])
+		out["print_keeps_the_values"] = "Old Value" in markup and "New Value" in markup
+		out["screen_keeps_all_22"] = len(res["columns"]) == 22
+		pdf = report.render_source_pdf(
+			"Consolidated Audit Trail", res, {"header": 1}, filters=WIDE, notes=res["notes"]
+		)
+		out["pdf_renders"] = len(pdf) > 2000
+		out["pdf_bytes"] = len(pdf)
+	else:
+		out["printing"] = "WeasyPrint absent, as on v14"
+
 	out["all_ok"] = all(v for v in out.values() if isinstance(v, bool))
 	print(json.dumps(out, indent=1, default=str)[:2800])
 

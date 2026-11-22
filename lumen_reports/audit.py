@@ -209,6 +209,13 @@ def trail(
 	return {
 		"result_type": "rows",
 		"columns": _columns(),
+		# what a printed page should carry: when, who, which document, which
+		# field, and what it went from and to. The rest stay on screen and in
+		# the CSV, where there is room for them
+		"print_columns": [
+			"change_date", "change_time", "changed_by", "doctype", "document",
+			"action", "field", "old_value", "new_value",
+		],
 		"rows": rows,
 		"total": len(rows),
 		"truncated": truncated,

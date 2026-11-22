@@ -47,10 +47,22 @@ def reports_supported() -> bool:
 		_WEASYPRINT = importlib.util.find_spec("weasyprint") is not None
 	return _WEASYPRINT
 
-PAPERS = {"A4": "A4", "Letter": "letter"}
+PAPERS = {
+	"A4": "A4",
+	"Letter": "letter",
+	# a wide report has nowhere to go on a portrait page: its last columns are
+	"A4 Landscape": "A4 landscape",
+	"Letter Landscape": "letter landscape",
+}
+# past this many columns a page cannot hold a readable row, so a report that
+# names its own print columns gets those and the rest stay in the CSV
+MAX_PRINT_COLUMNS = 10
 MAX_BARS = 10
 MAX_SLICES = 7
 MAX_TABLE_ROWS = 60
+# a registered report IS the document, so it carries far more than a widget
+# would; past this the PDF stops being something anyone reads
+MAX_SOURCE_ROWS = 1000
 MAX_MATRIX_ROWS = 14
 MAX_MATRIX_COLS = 12
 MAX_TREE_CHILDREN = 8
@@ -649,7 +661,8 @@ def _tree(result, lang):
 	)
 
 
-def _table(result, lang):
+def _table(result, lang, limit=None):
+	limit = limit or MAX_TABLE_ROWS
 	columns = result.get("columns") or []
 	data = result.get("rows") or []
 	if not columns:
@@ -665,7 +678,7 @@ def _table(result, lang):
 		for c, k in zip(columns, keys)
 	)
 	body = []
-	for row in data[:MAX_TABLE_ROWS]:
+	for row in data[:limit]:
 		cells = []
 		for k in keys:
 			v = row.get(k) if isinstance(row, dict) else None
@@ -675,8 +688,8 @@ def _table(result, lang):
 				cells.append(f'<td dir="auto">{_e(v if v is not None else "")}</td>')
 		body.append("<tr>" + "".join(cells) + "</tr>")
 	note = ""
-	if len(data) > MAX_TABLE_ROWS:
-		note = f'<div class="note">{_e(_t(lang, "first_rows", MAX_TABLE_ROWS))}</div>'
+	if len(data) > limit:
+		note = f'<div class="note">{_e(_t(lang, "first_rows", limit))}</div>'
 	return f'<table class="grid"><thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table>{note}'
 
 
@@ -1170,6 +1183,101 @@ def render_html(doc, options) -> str:
 		f"<style>{_css(options, palette, identity['footer_text'], report_fonts(identity))}</style></head>"
 		f"<body>{header}{summary}{_body(items, palette, lang)}</body></html>"
 	)
+
+
+def _source_filters_line(filters, lang) -> str:
+	"""The filters a registered report was run with, read as a sentence.
+
+	A dashboard can look its filter labels up on itself; a registered report has
+	only the names its own app declared, so they are tidied rather than
+	translated, and anything empty is left out."""
+	parts = []
+	for name, value in (filters or {}).items():
+		if value in (None, "", [], {}):
+			continue
+		if isinstance(value, (list, tuple)):
+			value = ", ".join(str(v) for v in value)
+		label = str(name).replace("_", " ").strip().capitalize()
+		parts.append(f"{label}: {value}")
+	return " · ".join(parts) if parts else _t(lang, "all_data")
+
+
+def _for_print(result):
+	"""The columns a page can actually hold.
+
+	Twenty two columns do not fit on paper at any readable size: the last of them
+	fall off the edge, and on an audit those are the old value, the new value and
+	who made the change, which is the whole story. A report may name the columns
+	worth printing in `print_columns`; otherwise the leading ones are kept. The
+	screen and the CSV still carry every column."""
+	columns = result.get("columns") or []
+	if len(columns) <= MAX_PRINT_COLUMNS:
+		return result
+	wanted = result.get("print_columns")
+	if wanted:
+		keep = [c for c in columns if (c.get("fieldname") or c.get("key")) in wanted]
+	else:
+		keep = columns[:MAX_PRINT_COLUMNS]
+	return {**result, "columns": keep or columns[:MAX_PRINT_COLUMNS]}
+
+
+def render_source_html(label, result, options, filters=None, notes=None) -> str:
+	"""A report another part of the app computed, printed on the same paper.
+
+	A dashboard is a set of widgets laid out on a grid; this is one table. What
+	surrounds it is deliberately identical: the organization's letterhead and
+	logo, its own footer line, the Lumen credit, the page numbers, and the Latin
+	and Arabic faces it chose. An auditor's PDF should not look like it came from
+	a different product."""
+	options = _options(options)
+	lang = options["lang"]
+	identity = brand.get_brand()
+	palette = _palette(brand.resolve_theme({}))
+
+	header = ""
+	if options["header"]:
+		company, logo = _company()
+		logo_html = f'<img src="{_e(logo)}" alt=""/>' if logo else ""
+		logo_cell = f'<td class="logo">{logo_html}</td>' if logo_html else ""
+		letterhead = _image_src(identity["letterhead"])
+		band = f'<div class="lhead"><img src="{_e(letterhead)}" alt=""/></div>' if letterhead else ""
+		prepared = ""
+		if options["prepared_for"]:
+			prepared = f"<div>{_e(_t(lang, 'prepared_for', options['prepared_for']))}</div>"
+		header = (
+			f'{band}<div class="rhead"><table><tr>{logo_cell}'
+			f'<td class="who"><div class="rtitle" dir="auto">{_e(label)}</div>'
+			f'<div class="rsub" dir="auto">{_e(_source_filters_line(filters, lang))}</div></td>'
+			f'<td class="rmeta"><b dir="auto">{_e(company)}</b>'
+			f"<div>{_e(_t(lang, 'generated'))} {_e(_fmt_date(frappe.utils.now_datetime(), lang))}</div>"
+			f"{prepared}</td></tr></table></div>"
+		)
+
+	# whatever the report wanted to say about its own limits travels with it,
+	# because a printed page cannot be asked afterwards
+	told = ""
+	for note in (notes or [])[:4]:
+		told += f'<div class="note" dir="auto">{_e(note)}</div>'
+
+	table = _table(_for_print(result), lang, limit=MAX_SOURCE_ROWS) or f'<div class="empty">{_e(_t(lang, "no_data"))}</div>'
+	direction = "rtl" if lang == "ar" else "ltr"
+	return _resolve_dirs(
+		f'<!doctype html><html lang="{lang}" dir="{direction}"><head><meta charset="utf-8">'
+		f"<title>{_e(label)}</title>"
+		f"<style>{_css(options, palette, identity['footer_text'], report_fonts(identity))}</style></head>"
+		# NOT inside .card: that carries break-inside: avoid, which is right for a
+		# widget on a board and wrong here, because a report of a thousand rows
+		# then refuses to start until it can fit whole and leaves page one blank.
+		# The table flows instead, and .grid already repeats its header row.
+		f'<body>{header}{told}{table}</body></html>'
+	)
+
+
+def render_source_pdf(label, result, options, filters=None, notes=None) -> bytes:
+	import weasyprint
+
+	markup = render_source_html(label, result, options, filters, notes)
+	return weasyprint.HTML(string=markup, url_fetcher=_safe_fetcher).write_pdf()
 
 
 def render_pdf(doc, options) -> bytes:

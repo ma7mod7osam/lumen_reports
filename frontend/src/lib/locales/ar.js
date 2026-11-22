@@ -309,6 +309,7 @@ export default {
   'Changes found': 'التغييرات',
   'Choose a period, then run it.': 'اختر الفترة ثم شغل التقرير.',
   'Export CSV': 'تصدير CSV',
+  'Print PDF': 'طباعة PDF',
   Run: 'تشغيل',
   'That could not be read.': 'تعذرت القراءة.',
 

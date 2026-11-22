@@ -50,6 +50,14 @@
           <span v-else class="note">{{ t('Choose a period, then run it.') }}</span>
           <span style="flex: 1"></span>
           <button class="lbtn" :disabled="busy || !result" @click="exportCsv">{{ t('Export CSV') }}</button>
+          <button
+            v-if="canPrint"
+            class="lbtn"
+            :disabled="busy || !result"
+            @click="printPdf"
+          >
+            {{ t('Print PDF') }}
+          </button>
           <button class="lbtn primary" :disabled="busy" @click="run">{{ t('Run') }}</button>
         </div>
       </div>
@@ -64,11 +72,11 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { call } from 'frappe-ui'
 import TableBody from '@/components/widgets/TableBody.vue'
 import { downloadFile, resultToCsv } from '@/lib/csv'
-import { t } from '@/lib/i18n'
+import { lang, t } from '@/lib/i18n'
 import '@/components/builder/controls.css'
 
 const KEY = 'lumen_reports.audit_trail'
@@ -151,6 +159,20 @@ function readable(failure) {
   const strip = (x) => String(x || '').replace(/<[^>]+>/g, '').trim()
   if (Array.isArray(failure?.messages) && failure.messages.length) return strip(failure.messages[0])
   return strip(failure?.message)
+}
+
+// printing needs WeasyPrint, which does not ship with Frappe v14; the rest of
+// the page works there, so the button goes rather than failing when pressed
+const canPrint = computed(() => window.reports_enabled !== false)
+
+function printPdf() {
+  const query = new URLSearchParams({
+    key: KEY,
+    filters: JSON.stringify(sent()),
+    // a wide report has nowhere to go on a portrait page
+    options: JSON.stringify({ paper: 'A4 Landscape', lang: lang.value, header: 1 }),
+  })
+  window.open(`/api/method/lumen_reports.integrations.sources.download_report?${query}`, '_blank')
 }
 
 function exportCsv() {

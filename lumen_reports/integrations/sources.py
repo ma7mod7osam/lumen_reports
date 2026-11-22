@@ -248,6 +248,62 @@ def list_reports() -> dict:
 	}
 
 
+def resolve(key: str):
+	"""The registered report behind a key, or a refusal, with every gate applied.
+
+	run_report and the printed edition must agree about who may see what, so they
+	ask the same question here rather than each deciding for itself."""
+	source = _registry().get(str(key or ""))
+	if not source:
+		return None, _refusal("unknown_report", _("No report is registered as {0}.").format(str(key or "")[:60]))
+	if not _may_reach(source):
+		return None, _refusal(
+			"needs_role",
+			_("You need a Lumen Reports role to see this. Ask your administrator for Lumen Restricted Viewer."),
+		)
+	if not _allowed(source):
+		return None, _refusal("not_permitted", _("You do not have permission to see this report."))
+	try:
+		frappe.get_attr(source["method"])
+	except Exception:
+		return None, _refusal(
+			"not_available",
+			_("{0} is registered but its code could not be loaded.").format(source["label"]),
+		)
+	return source, None
+
+
+@frappe.whitelist(methods=["GET", "POST"])
+def download_report(key: str, filters=None, options=None, inline: int | str = 0):
+	"""The same report as a PDF, on the organization's own paper.
+
+	It is rendered here rather than by the owning app so that every registered
+	report comes out looking like the rest of this product, with the identity,
+	the footer line and the two fonts the site chose."""
+	from lumen_reports import report
+
+	_require_login()
+	if not report.reports_supported():
+		frappe.throw(_("PDF reports need Frappe version 15 or newer."), title=_("Not available"))
+
+	source, refusal = resolve(key)
+	if refusal:
+		frappe.throw(refusal["message"], frappe.PermissionError)
+
+	values = _filters(source, filters)
+	result = frappe.get_attr(source["method"])(**values)
+	if not isinstance(result, dict) or result.get("result_type") != "rows":
+		frappe.throw(_("Only a report that returns rows can be printed, and {0} does not.").format(source["label"]))
+
+	pdf = report.render_source_pdf(
+		source["label"], result, options, filters=values, notes=result.get("notes")
+	)
+	stamp = frappe.utils.nowdate()
+	frappe.local.response.filename = f"{source['key'].replace('.', '-')}-{stamp}.pdf"
+	frappe.local.response.filecontent = pdf
+	frappe.local.response.type = "pdf" if frappe.utils.cint(inline) else "download"
+
+
 @frappe.whitelist(methods=["GET", "POST"])
 def run_report(key: str, filters=None) -> dict:
 	"""Run one registered report and hand back what its app returned.
@@ -258,27 +314,11 @@ def run_report(key: str, filters=None) -> dict:
 
 	# the report is resolved first: which roles open it is now the report's own
 	# business, so there is nothing to check until we know which one it is
-	source = _registry().get(str(key or ""))
-	if not source:
-		return _refusal("unknown_report", _("No report is registered as {0}.").format(str(key or "")[:60]))
+	source, refusal = resolve(key)
+	if refusal:
+		return refusal
 
-	if not _may_reach(source):
-		return _refusal(
-			"needs_role",
-			_("You need a Lumen Reports role to see this. Ask your administrator for Lumen Restricted Viewer."),
-		)
-
-	if not _allowed(source):
-		return _refusal("not_permitted", _("You do not have permission to see this report."))
-
-	try:
-		method = frappe.get_attr(source["method"])
-	except Exception:
-		return _refusal(
-			"not_available",
-			_("{0} is registered but its code could not be loaded.").format(source["label"]),
-		)
-
+	method = frappe.get_attr(source["method"])
 	values = _filters(source, filters)
 	# the owning app raises its own errors, and they travel as they are: a
 	# refusal it wrote is clearer than anything this app could invent
