@@ -223,7 +223,12 @@ def _filters(source: dict, raw) -> dict:
 # ---------------------------------------------------------------- contract
 
 
-@frappe.whitelist(methods=["GET"])
+# GET and POST both, not GET alone. This reads and changes nothing, and the
+# browser clients that call it go through frappe-ui's call(), which always
+# sends POST. Frappe then refuses a GET-only method with a bare "Not
+# permitted", which reads exactly like a missing role and sent a real
+# auditor to his administrator for a fault that was ours.
+@frappe.whitelist(methods=["GET", "POST"])
 def list_reports() -> dict:
 	"""What is registered on this site, and what this person may run."""
 	_require_login()

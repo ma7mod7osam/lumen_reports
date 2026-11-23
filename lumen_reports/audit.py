@@ -520,7 +520,12 @@ def _amendment_no(doctype, name, _cache={}):
 # ---------------------------------------------------------------- pickers
 
 
-@frappe.whitelist(methods=["GET"])
+# GET and POST both, not GET alone. This reads and changes nothing, and the
+# browser clients that call it go through frappe-ui's call(), which always
+# sends POST. Frappe then refuses a GET-only method with a bare "Not
+# permitted", which reads exactly like a missing role and sent a real
+# auditor to his administrator for a fault that was ours.
+@frappe.whitelist(methods=["GET", "POST"])
 def options():
 	"""What the filters on the page should offer.
 

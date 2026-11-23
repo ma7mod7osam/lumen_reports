@@ -53,6 +53,31 @@ def _throws(fn):
 		return True
 
 
+
+def _http_refusal(path: str, verb: str) -> str:
+	"""What frappe.handler.is_valid_http_method says to a request of this verb.
+
+	Empty means it got through. This is the gate that runs before the function
+	does, and it answers in the same words as a permission error, which is why
+	a wrong verb is so easy to mistake for a missing role."""
+	from frappe import handler
+
+	class _Request:
+		method = verb
+
+	fn = frappe.get_attr(path)
+	was = getattr(frappe.local, "request", None)
+	frappe.local.request = _Request()
+	try:
+		handler.is_valid_http_method(fn)
+		return ""
+	except Exception as e:
+		msg = frappe.utils.strip_html(str(e))
+		frappe.clear_last_message()
+		return msg or "refused"
+	finally:
+		frappe.local.request = was
+
 def run():
 	out = {}
 	_user(AUDITOR, [audit.ROLE])
@@ -174,6 +199,16 @@ def run():
 		out["pdf_bytes"] = len(pdf)
 	else:
 		out["printing"] = "WeasyPrint absent, as on v14"
+
+	# The page fetches its filter choices with frappe-ui's call(), which always
+	# sends POST. options() was whitelisted GET-only, so Frappe refused it with
+	# "Not permitted" and the page read that as a missing role: it told every
+	# visitor, auditor or not, to go and ask an administrator for a role they
+	# already had. This drives the real server gate rather than reading the
+	# decorator, so it would catch the same mistake made any other way.
+	out["options_reachable_by_post"] = _http_refusal("lumen_reports.audit.options", "POST") == ""
+	out["options_reachable_by_get"] = _http_refusal("lumen_reports.audit.options", "GET") == ""
+	out["options_offers_pickers"] = sorted(audit.options().keys()) != []
 
 	out["all_ok"] = all(v for v in out.values() if isinstance(v, bool))
 	print(json.dumps(out, indent=1, default=str)[:2800])

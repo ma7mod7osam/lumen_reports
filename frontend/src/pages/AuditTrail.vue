@@ -113,13 +113,25 @@ const choices = ref({})
 const result = ref(null)
 const busy = ref(false)
 const error = ref('')
-const denied = ref(false)
+// Whether this person holds the role is settled before any request: the server
+// writes audit.can_see() into boot as window.lumen_auditor (www/lumen.py), which
+// is the same answer that gates the header link. It must never be inferred from
+// a failed request. It was, and a real auditor who HELD the role was told to go
+// and ask his administrator for it, because what actually failed was an HTTP
+// method refused on our side. A request that fails now says what it failed at.
+// Only boot, or the server naming a role refusal, closes the page.
+// In the Vite dev server boot is unrendered, so anything but an explicit false
+// counts as allowed, as capabilities.js does.
+const refused = ref(false)
+const denied = computed(() => window.lumen_auditor === false || refused.value)
 
 onMounted(async () => {
   try {
     choices.value = await call('lumen_reports.audit.options')
   } catch (e) {
-    denied.value = true
+    // the pickers are a convenience, not the page: the dates and the typed
+    // filters still run, so say what went wrong and leave the page standing
+    error.value = readable(e) || t('The filter choices could not be read.')
   }
 })
 
@@ -143,7 +155,7 @@ async function run() {
       filters: sent(),
     })
     if (answer.status !== 'ok') {
-      denied.value = answer.status === 'needs_role' || answer.status === 'not_permitted'
+      refused.value = answer.status === 'needs_role' || answer.status === 'not_permitted'
       error.value = answer.message || t('That could not be read.')
       return
     }

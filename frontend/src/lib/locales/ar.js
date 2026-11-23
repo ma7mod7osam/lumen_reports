@@ -310,6 +310,7 @@ export default {
   'Choose a period, then run it.': 'اختر الفترة ثم شغل التقرير.',
   'Export CSV': 'تصدير CSV',
   'Print PDF': 'طباعة PDF',
+  'The filter choices could not be read.': 'تعذر قراءة خيارات التصفية.',
   Run: 'تشغيل',
   'That could not be read.': 'تعذرت القراءة.',
 

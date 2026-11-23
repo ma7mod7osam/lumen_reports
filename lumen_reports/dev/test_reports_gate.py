@@ -59,6 +59,15 @@ def run():
 	out["no_bare_cache"] = stray == []
 	out["bare_cache"] = stray
 
+	# Every server method the SPA calls must accept POST, because frappe-ui's
+	# call() always sends POST. A method whitelisted GET-only is refused by
+	# Frappe with a bare "Not permitted", which reads to the person exactly like
+	# a missing role. audit.options was GET-only, so the audit trail refused
+	# every visitor, auditor or not, Administrator included.
+	wrong = spa_calls_refusing_post()
+	out["spa_calls_accept_post"] = wrong == []
+	out["spa_calls_refusing_post"] = wrong
+
 	out["all_ok"] = all(v for k, v in out.items() if isinstance(v, bool))
 	print(json.dumps(out, indent=1))
 
@@ -83,3 +92,44 @@ def bare_cache_uses():
 				if pattern.search(line) and "frappe.local.cache" not in line:
 					hits.append(f"{os.path.relpath(path, root)}:{i}")
 	return hits
+
+
+def spa_calls_refusing_post() -> list:
+	"""The methods the SPA calls that a POST cannot reach.
+
+	frappe-ui's call() hardcodes POST (node_modules/frappe-ui/src/utils/call.js),
+	whatever the method reads or writes, so an endpoint declared
+	methods=["GET"] is rejected by frappe.handler.is_valid_http_method before it
+	runs. The message is "Not permitted", indistinguishable from a permission
+	refusal, which is how a GET-only audit.options turned into a role error on
+	the page and sent an auditor who held the role to his administrator."""
+	import os
+	import re
+
+	root = os.path.join(frappe.get_app_path("lumen_reports"), "..", "frontend", "src")
+	if not os.path.isdir(root):
+		return ["frontend/src is not on this bench, so nothing was scanned"]
+
+	called = set()
+	for base, _dirs, names in os.walk(root):
+		for name in names:
+			if not name.endswith((".vue", ".js")):
+				continue
+			with open(os.path.join(base, name), encoding="utf-8") as f:
+				called |= set(re.findall(r"""call\(\s*['\"]([\w.]+)['\"]""", f.read()))
+
+	wrong = []
+	for path in sorted(called):
+		if not path.startswith("lumen_reports."):
+			continue
+		try:
+			fn = frappe.get_attr(path)
+		except Exception:
+			wrong.append(f"{path} does not resolve")
+			continue
+		allowed = frappe.allowed_http_methods_for_whitelisted_func.get(fn)
+		if allowed is None:
+			wrong.append(f"{path} is not whitelisted")
+		elif "POST" not in allowed:
+			wrong.append(f"{path} allows only {allowed}")
+	return wrong
